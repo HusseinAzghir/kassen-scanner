@@ -1396,28 +1396,30 @@ const fdb = initializeFirestore(fbApp, {
     }
   }
 
-  // Beim allerersten Start (leere Datenbank) den aktuellen Kassenbestand anlegen.
-  // Eine Transaktion auf meta/seeded verhindert doppeltes Anlegen, wenn zwei
-  // Handys gleichzeitig zum ersten Mal starten.
+  // Beim ersten Start den aktuellen Kassenbestand anlegen. Warengruppen und
+  // Artikel werden getrennt geprüft, damit ein Abbruch (z. B. durch einen
+  // Blocker) sich beim nächsten Laden von selbst heilt. Je ein Wächter-Dokument
+  // in meta/ verhindert doppeltes Anlegen bei gleichzeitigem Erststart.
   function maybeSeed() {
     if (seedChecked || !gotArticles || !gotDepts) return;
     seedChecked = true;
-    if (state.articles.length || state.depts.length) return;
+    if (state.depts.length === 0) seedInto("departments", "deptsSeeded", SEED_DEPTS.map(function (d, i) {
+      return { Id: d.Id, GroupId: d.GroupId, name: d.name, ToGo: d.ToGo, seq: i + 1 };
+    }));
+    if (state.articles.length === 0) seedInto("articles", "articlesSeeded", SEED_ARTICLES.map(function (a, i) {
+      var o = toDoc(a); o.seq = i + 1; return o;
+    }));
+  }
 
+  function seedInto(coll, guardName, rows) {
     runTransaction(fdb, function (tx) {
-      var metaRef = doc(fdb, "meta", "seeded");
-      return tx.get(metaRef).then(function (m) {
+      var guardRef = doc(fdb, "meta", guardName);
+      return tx.get(guardRef).then(function (m) {
         if (m.exists()) return;
-        SEED_DEPTS.forEach(function (d, i) {
-          tx.set(doc(collection(fdb, "departments")),
-            { Id: d.Id, GroupId: d.GroupId, name: d.name, ToGo: d.ToGo, seq: i + 1 });
-        });
-        SEED_ARTICLES.forEach(function (a, i) {
-          var o = toDoc(a); o.seq = i + 1; tx.set(doc(collection(fdb, "articles")), o);
-        });
-        tx.set(metaRef, { at: serverTimestamp() });
+        rows.forEach(function (row) { tx.set(doc(collection(fdb, coll)), row); });
+        tx.set(guardRef, { at: serverTimestamp() });
       });
-    }).catch(function () { /* jemand anderes hat bereits geseedet */ });
+    }).catch(function () { /* jemand anderes hat bereits angelegt */ });
   }
 
   function fbWriteError() {
