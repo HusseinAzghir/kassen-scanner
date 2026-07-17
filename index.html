@@ -897,9 +897,9 @@
     <div class="field">
       <label for="fPrice">Verkaufspreis (brutto)</label>
       <div class="price-wrap">
-        <input type="text" id="fPrice" class="price" inputmode="decimal" placeholder="0,00">
+        <input type="text" id="fPrice" class="price" inputmode="numeric" placeholder="0,00">
       </div>
-      <span class="hint" id="netHint">Netto wird automatisch berechnet.</span>
+      <span class="hint" id="netHint">Nur Ziffern tippen: „150“ wird 1,50 €. Netto rechnet die App aus.</span>
     </div>
 
     <div class="field">
@@ -943,7 +943,7 @@
       <div class="details-body">
         <div class="field">
           <label for="fBuy">Einkaufspreis netto</label>
-          <input type="text" id="fBuy" class="mono" inputmode="decimal" placeholder="0,00">
+          <input type="text" id="fBuy" class="mono" inputmode="numeric" placeholder="0,00">
         </div>
         <div class="field">
           <label for="fTare">Tara (tare_value)</label>
@@ -1602,7 +1602,7 @@
     var g = parseNum($("fPrice").value);
     var t = taxById(draft.taxId);
     if (isNaN(g)) {
-      $("netHint").textContent = "Netto wird automatisch berechnet.";
+      $("netHint").textContent = "Nur Ziffern tippen: „150“ wird 1,50 €. Netto rechnet die App aus.";
       return;
     }
     $("netHint").innerHTML = "Netto bei " + t.label + ": <strong>" + de(netFromGross(g, draft.taxId)) + " €</strong>";
@@ -1961,7 +1961,17 @@
     toast("Entfernt");
   });
 
-  $("fPrice").addEventListener("input", updateNetHint);
+  // Preiseingabe wie an der Kasse: nur Ziffern, die letzten zwei sind Cent.
+  // "150" -> 1,50 / "8" -> 0,08 — weitere Ziffern schieben nach links.
+  function cashFormat(el) {
+    var digits = el.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 7);
+    if (!digits) { el.value = ""; return; }
+    while (digits.length < 3) digits = "0" + digits;
+    el.value = digits.slice(0, -2) + "," + digits.slice(-2);
+  }
+
+  $("fPrice").addEventListener("input", function () { cashFormat(this); updateNetHint(); });
+  $("fBuy").addEventListener("input", function () { cashFormat(this); });
 
   $("fDeposit").addEventListener("click", function () {
     draft.deposit = !draft.deposit;
