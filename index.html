@@ -1,0 +1,2117 @@
+<title>Artikel scannen — Barakzai Markt</title>
+<style>
+  :root {
+    --ground: #F0F2ED;
+    --surface: #FFFFFF;
+    --surface-alt: #E6EAE1;
+    --line: #D3D9CC;
+    --line-strong: #B6BFAC;
+    --ink: #171B14;
+    --ink-2: #5D6656;
+    --accent: #2C6B45;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #DCEAE0;
+    --signal: #D9531E;
+    --warn-bg: #F7EBD6;
+    --warn-ink: #7A5310;
+    --shadow: 0 1px 2px rgba(20, 28, 16, .06), 0 8px 24px rgba(20, 28, 16, .06);
+
+    --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 16px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0F120E;
+      --surface: #181C16;
+      --surface-alt: #222720;
+      --line: #333A2F;
+      --line-strong: #46503F;
+      --ink: #E9ECE4;
+      --ink-2: #97A08D;
+      --accent: #58B47D;
+      --accent-ink: #0F120E;
+      --accent-soft: #1E2E24;
+      --signal: #FF7A45;
+      --warn-bg: #2E2617;
+      --warn-ink: #E0B65E;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0F120E;
+    --surface: #181C16;
+    --surface-alt: #222720;
+    --line: #333A2F;
+    --line-strong: #46503F;
+    --ink: #E9ECE4;
+    --ink-2: #97A08D;
+    --accent: #58B47D;
+    --accent-ink: #0F120E;
+    --accent-soft: #1E2E24;
+    --signal: #FF7A45;
+    --warn-bg: #2E2617;
+    --warn-ink: #E0B65E;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+  }
+
+  :root[data-theme="light"] {
+    --ground: #F0F2ED;
+    --surface: #FFFFFF;
+    --surface-alt: #E6EAE1;
+    --line: #D3D9CC;
+    --line-strong: #B6BFAC;
+    --ink: #171B14;
+    --ink-2: #5D6656;
+    --accent: #2C6B45;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #DCEAE0;
+    --signal: #D9531E;
+    --warn-bg: #F7EBD6;
+    --warn-ink: #7A5310;
+    --shadow: 0 1px 2px rgba(20, 28, 16, .06), 0 8px 24px rgba(20, 28, 16, .06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--ground);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ---------- Header ---------- */
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .topbar h1 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .topbar .sub {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--ink-2);
+    letter-spacing: 0.02em;
+  }
+
+  .count-pill {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8125rem;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid transparent;
+    padding: 5px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* ---------- Views ---------- */
+
+  main {
+    flex: 1;
+    padding: 16px 16px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .view { display: none; flex-direction: column; gap: 16px; }
+  .view.is-active { display: flex; }
+
+  /* ---------- Scanner ---------- */
+
+  .scanner {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: #0B0D0A;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+
+  .scanner video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .scanner-idle {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+    padding: 24px;
+    color: #B9C2B0;
+    font-size: 0.875rem;
+  }
+
+  .scanner.is-live .scanner-idle { display: none; }
+
+  .reticle {
+    position: absolute;
+    inset: 18% 10%;
+    display: none;
+    border-radius: var(--r-md);
+  }
+
+  .scanner.is-live .reticle { display: block; }
+
+  .reticle::before,
+  .reticle::after {
+    content: "";
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border: 3px solid rgba(255, 255, 255, .9);
+  }
+
+  .reticle::before {
+    top: -1px; left: -1px;
+    border-right: none; border-bottom: none;
+    border-radius: var(--r-md) 0 0 0;
+  }
+
+  .reticle::after {
+    bottom: -1px; right: -1px;
+    border-left: none; border-top: none;
+    border-radius: 0 0 var(--r-md) 0;
+  }
+
+  .beam {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: var(--signal);
+    box-shadow: 0 0 12px 2px var(--signal);
+    animation: sweep 2.4s ease-in-out infinite;
+  }
+
+  @keyframes sweep {
+    0%, 100% { top: 4%; }
+    50% { top: 96%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .beam { animation: none; top: 50%; }
+  }
+
+  .scan-hint {
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Cards ---------- */
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .card-title {
+    margin: 0;
+    font-size: 0.6875rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Form ---------- */
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+
+  .field > label {
+    font-size: 0.8125rem;
+    font-weight: 550;
+    color: var(--ink-2);
+  }
+
+  .hint {
+    font-size: 0.75rem;
+    color: var(--ink-2);
+  }
+
+  .hint strong {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    font-weight: 550;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    padding: 12px;
+    min-height: 48px;
+  }
+
+  input.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  input.price {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-align: right;
+    padding-right: 44px;
+  }
+
+  .price-wrap { position: relative; }
+
+  .price-wrap::after {
+    content: "€";
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 1.125rem;
+    color: var(--ink-2);
+    pointer-events: none;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Chips ---------- */
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .chip {
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 550;
+    color: var(--ink);
+    background: var(--surface-alt);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 10px 14px;
+    min-height: 42px;
+    cursor: pointer;
+  }
+
+  .chip[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .chip.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Toggle ---------- */
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+  }
+
+  .toggle-row > span { font-size: 0.9375rem; }
+
+  .switch {
+    flex: none;
+    width: 52px;
+    height: 30px;
+    border-radius: 999px;
+    border: none;
+    background: var(--line-strong);
+    position: relative;
+    cursor: pointer;
+    transition: background .16s ease;
+  }
+
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    transition: transform .16s ease;
+  }
+
+  .switch[aria-pressed="true"] { background: var(--accent); }
+  .switch[aria-pressed="true"]::after { transform: translateX(22px); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .switch, .switch::after { transition: none; }
+  }
+
+  /* ---------- Buttons ---------- */
+
+  .btn {
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: var(--r-md);
+    border: 1px solid transparent;
+    padding: 13px 16px;
+    min-height: 50px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--surface-alt);
+    color: var(--ink);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .btn-outline {
+    background: transparent;
+    border-color: var(--line-strong);
+    color: var(--ink);
+  }
+
+  .btn-danger {
+    background: transparent;
+    border-color: var(--signal);
+    color: var(--signal);
+  }
+
+  .btn-block { width: 100%; }
+
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row > .btn { flex: 1; }
+
+  /* ---------- Article list ---------- */
+
+  .list { display: flex; flex-direction: column; gap: 8px; }
+
+  .item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    align-items: center;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .item-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .item-price {
+    grid-row: 1 / 3;
+    grid-column: 2;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .item-meta {
+    font-size: 0.75rem;
+    color: var(--ink-2);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    margin-left: 6px;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--ink-2);
+    font-size: 0.875rem;
+    padding: 40px 16px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-lg);
+  }
+
+  /* ---------- Notice ---------- */
+
+  .notice {
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    font-size: 0.8125rem;
+  }
+
+  .notice code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  /* ---------- Bottom nav ---------- */
+
+  .tabbar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .tab {
+    font-family: inherit;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: none;
+    border: none;
+    color: var(--ink-2);
+    padding: 10px 4px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .tab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+  .tab[aria-selected="true"] { color: var(--accent); }
+
+  /* ---------- Sheet ---------- */
+
+  .sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: var(--ground);
+    display: none;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .sheet.is-open { display: flex; }
+
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    flex: none;
+  }
+
+  .sheet-head h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 650;
+  }
+
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sheet-foot {
+    flex: none;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    display: flex;
+    gap: 8px;
+  }
+
+  .sheet-foot > .btn { flex: 1; }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--ink-2);
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 8px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+  }
+
+  .barcode-display {
+    background: var(--surface-alt);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .barcode-display .val {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+  }
+
+  .barcode-display .lbl {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-2);
+  }
+
+  details {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 0;
+  }
+
+  details > summary {
+    padding: 14px 16px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::after { content: "＋"; color: var(--ink-2); }
+  details[open] > summary::after { content: "－"; }
+
+  .details-body {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ---------- Toast ---------- */
+
+  .toast {
+    position: fixed;
+    bottom: 84px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    z-index: 60;
+    background: var(--ink);
+    color: var(--ground);
+    font-size: 0.875rem;
+    font-weight: 550;
+    padding: 11px 18px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+    max-width: 90vw;
+    text-align: center;
+  }
+
+  .toast.is-shown {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast { transition: none; }
+  }
+
+  .dup {
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    font-size: 0.8125rem;
+    display: none;
+  }
+
+  .dup.is-shown { display: block; }
+
+  /* ---------- Foto ---------- */
+
+  .photo-row { display: flex; gap: 12px; align-items: stretch; }
+
+  .thumb {
+    flex: none;
+    width: 84px;
+    height: 84px;
+    border-radius: var(--r-md);
+    background: var(--surface-alt) center / cover no-repeat;
+    border: 1px solid var(--line);
+    position: relative;
+  }
+
+  .thumb[data-empty="true"]::after {
+    content: "kein Foto";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    color: var(--ink-2);
+    text-align: center;
+  }
+
+  .photo-actions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .photo-actions > .btn { width: 100%; }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <h1>Artikel scannen<span class="sub">Barakzai Markt · Kassen-Import</span></h1>
+    <span class="count-pill" id="countPill">0 neu</span>
+  </header>
+
+  <main>
+    <!-- ============ SCAN ============ -->
+    <section class="view is-active" id="view-scan" aria-label="Scannen">
+      <div class="scanner" id="scanner">
+        <video id="video" playsinline muted></video>
+        <div class="reticle"><div class="beam"></div></div>
+        <div class="scanner-idle" id="scannerIdle">
+          <span>Kamera ist aus</span>
+          <button class="btn btn-primary" id="startCam">Kamera starten</button>
+        </div>
+      </div>
+      <p class="scan-hint" id="scanHint">Barcode in den Rahmen halten — der Artikel öffnet sich automatisch.</p>
+      <button class="btn btn-outline btn-block" id="manualBtn">Ohne Barcode anlegen (Waage / PLU)</button>
+      <div class="notice" id="camNotice" hidden></div>
+    </section>
+
+    <!-- ============ LISTE ============ -->
+    <section class="view" id="view-list" aria-label="Artikelliste">
+      <div class="chips" role="group" aria-label="Filter">
+        <button class="chip" data-filter="new" aria-pressed="true">Nur neue</button>
+        <button class="chip" data-filter="all" aria-pressed="false">Alle</button>
+      </div>
+      <div class="list" id="articleList"></div>
+    </section>
+
+    <!-- ============ WARENGRUPPEN ============ -->
+    <section class="view" id="view-groups" aria-label="Warengruppen">
+      <div class="card">
+        <h2 class="card-title">Neue Warengruppe</h2>
+        <div class="field">
+          <label for="newDeptName">Name</label>
+          <input type="text" id="newDeptName" placeholder="z. B. Süßwaren" autocomplete="off">
+        </div>
+        <div class="toggle-row">
+          <span>ToGo-Warengruppe</span>
+          <button class="switch" id="newDeptToGo" aria-pressed="false" aria-label="ToGo"></button>
+        </div>
+        <button class="btn btn-primary" id="addDeptBtn">Warengruppe anlegen</button>
+      </div>
+      <div class="list" id="deptList"></div>
+      <p class="hint">Jede Warengruppe wird beim Export in <strong>Department.csv</strong> und <strong>Group.csv</strong> geschrieben — die Kasse braucht sie in beiden.</p>
+    </section>
+
+    <!-- ============ EXPORT ============ -->
+    <section class="view" id="view-export" aria-label="Export">
+      <div class="card">
+        <h2 class="card-title">Dateien für die Kasse</h2>
+        <button class="btn btn-primary btn-block" id="dlZip">Alles herunterladen (ZIP)</button>
+        <p class="hint" id="scopeHint"></p>
+        <button class="btn btn-outline btn-block" id="shareBtn" hidden>ZIP teilen</button>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Einzelne Dateien</h2>
+        <div class="chips" role="group" aria-label="Umfang">
+          <button class="chip" data-scope="all" aria-pressed="true">Alle Artikel</button>
+          <button class="chip" data-scope="new" aria-pressed="false">Nur neue</button>
+        </div>
+        <p class="notice" id="scopeWarn" hidden></p>
+        <button class="btn btn-outline btn-block" id="dlArticle">Article.csv</button>
+        <button class="btn btn-outline btn-block" id="dlDept">Department.csv + Group.csv</button>
+        <button class="btn btn-outline btn-block" id="dlImages">Images.csv</button>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Bestehende Datei laden</h2>
+        <p class="hint">Lade deine aktuelle <strong>Article.csv</strong> vom Kassen-Stick, damit die App weiß, was schon drin ist. Bereits vorhandene Barcodes werden dann als Dublette gewarnt.</p>
+        <label class="btn btn-outline btn-block" for="importFile">Article.csv einlesen</label>
+        <input type="file" id="importFile" accept=".csv,text/csv" hidden>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Daten</h2>
+        <p class="hint">Alles wird nur auf diesem Handy gespeichert — nichts geht ins Internet.</p>
+        <button class="btn btn-danger btn-block" id="resetBtn">Neue Artikel löschen</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar" role="tablist">
+    <button class="tab" role="tab" data-view="scan" aria-selected="true">
+      <svg viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>
+      Scannen
+    </button>
+    <button class="tab" role="tab" data-view="list" aria-selected="false">
+      <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
+      Artikel
+    </button>
+    <button class="tab" role="tab" data-view="groups" aria-selected="false">
+      <svg viewBox="0 0 24 24"><path d="M3 5h7v7H3zM14 5h7v7h-7zM3 16h7v3H3zM14 16h7v3h-7z"/></svg>
+      Gruppen
+    </button>
+    <button class="tab" role="tab" data-view="export" aria-selected="false">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12M12 15l-4-4M12 15l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      Export
+    </button>
+  </nav>
+</div>
+
+<!-- ============ FORMULAR-SHEET ============ -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet-head">
+    <h2 id="sheetTitle">Neuer Artikel</h2>
+    <button class="icon-btn" id="closeSheet" aria-label="Schließen">✕</button>
+  </div>
+
+  <div class="sheet-body">
+    <div class="dup" id="dupWarn"></div>
+
+    <div class="barcode-display">
+      <div>
+        <div class="lbl" id="codeLabel">Barcode</div>
+        <div class="val" id="codeValue">—</div>
+      </div>
+      <button class="btn btn-outline" id="editCode" style="min-height:40px;padding:8px 12px;">Ändern</button>
+    </div>
+
+    <div class="field">
+      <label for="fName">Artikelname</label>
+      <input type="text" id="fName" autocomplete="off" placeholder="z. B. Snickers 50g">
+    </div>
+
+    <div class="field">
+      <label for="fPrice">Verkaufspreis (brutto)</label>
+      <div class="price-wrap">
+        <input type="text" id="fPrice" class="price" inputmode="decimal" placeholder="0,00">
+      </div>
+      <span class="hint" id="netHint">Netto wird automatisch berechnet.</span>
+    </div>
+
+    <div class="field">
+      <label>Warengruppe</label>
+      <div class="chips" id="deptChips" role="group" aria-label="Warengruppe"></div>
+    </div>
+
+    <div class="field">
+      <label>Steuer</label>
+      <div class="chips" id="taxChips" role="group" aria-label="Steuer"></div>
+      <select id="taxSelect" hidden aria-label="Andere Steuer"></select>
+    </div>
+
+    <div class="field">
+      <label>Einheit</label>
+      <div class="chips" id="unitChips" role="group" aria-label="Einheit">
+        <button class="chip" data-unit="1" aria-pressed="true">Stück</button>
+        <button class="chip" data-unit="3" aria-pressed="false">Kilo (Waage)</button>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <span>Pfand</span>
+      <button class="switch" id="fDeposit" aria-pressed="false" aria-label="Pfand"></button>
+    </div>
+
+    <div class="field">
+      <label>Foto</label>
+      <div class="photo-row">
+        <div class="thumb" id="thumb" data-empty="true"></div>
+        <div class="photo-actions">
+          <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+          <label class="btn btn-outline" for="photoInput" id="photoBtn">Foto aufnehmen</label>
+          <button class="btn btn-danger" id="photoDel" hidden>Foto entfernen</button>
+        </div>
+      </div>
+    </div>
+
+    <details>
+      <summary>Weitere Felder</summary>
+      <div class="details-body">
+        <div class="field">
+          <label for="fBuy">Einkaufspreis netto</label>
+          <input type="text" id="fBuy" class="mono" inputmode="decimal" placeholder="0,00">
+        </div>
+        <div class="field">
+          <label for="fTare">Tara (tare_value)</label>
+          <input type="text" id="fTare" class="mono" inputmode="decimal" placeholder="0.0">
+        </div>
+        <div class="field">
+          <label for="fDepositId">Pfand-ID (deposit_id)</label>
+          <input type="text" id="fDepositId" class="mono" placeholder="leer lassen, wenn unbekannt" autocomplete="off">
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="sheet-foot">
+    <button class="btn btn-danger" id="deleteBtn" hidden>Löschen</button>
+    <button class="btn btn-primary" id="saveBtn">Speichern &amp; weiter</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================
+     Format der Kasse (aus den Original-CSV abgeleitet)
+     - UTF-8 mit BOM, LF-Zeilenenden, Semikolon-getrennt
+     - Preise mit Komma, tare_value/priceLimit mit Punkt
+     - Article.csv ohne Semikolon am Zeilenende,
+       Department.csv/Group.csv mit
+     ============================================================ */
+
+  var ARTICLE_HEADER = "DepartmentId;isHasBarcode;articleNo;codeNo;text;isNegativePrice;taxId;priceBuyNet;priceSellNet;priceSell;unitId;deposit_id;tare_value;isDeposit;isPriceLimitCheck;priceLimit;isCouponArticle;isVariant;isNfc;supplementId;isScale";
+
+  // Reihenfolge = taxId (1-basiert), exakt wie TaxGroup.csv
+  var TAXES = [
+    { id: 1, rate: 19.0, label: "19 %" },
+    { id: 2, rate: 7.0,  label: "7 %" },
+    { id: 3, rate: 8.4,  label: "8,4 %" },
+    { id: 4, rate: 5.5,  label: "5,5 %" },
+    { id: 5, rate: 0.0,  label: "Nicht steuerbar 0 %" },
+    { id: 6, rate: 0.0,  label: "Umsatzsteuerfrei 0 %" },
+    { id: 7, rate: 0.0,  label: "Steuer nicht ermittelbar 0 %" }
+  ];
+
+  var QUICK_TAX = [1, 2];
+
+  var SEED_DEPTS = [
+    { Id: 1, GroupId: 1, name: "Gemüse",   ToGo: 0 },
+    { Id: 2, GroupId: 2, name: "Obst",     ToGo: 1 },
+    { Id: 3, GroupId: 3, name: "Fleisch",  ToGo: 1 },
+    { Id: 4, GroupId: 4, name: "Getränke", ToGo: 1 }
+  ];
+
+  // Die 6 Artikel, die laut Article.csv schon in der Kasse sind.
+  var SEED_ARTICLES = [
+    { DepartmentId: 1, hasBarcode: true,  code: "4000405004968", text: "Schinken",                 taxId: 1, buy: "0,00", sell: "2,99", unitId: 1, deposit: false, depositId: "", tare: "0.0", isNew: false },
+    { DepartmentId: 1, hasBarcode: false, code: "0",             text: "Tomaten",                  taxId: 2, buy: "0,00", sell: "1,49", unitId: 3, deposit: false, depositId: "", tare: "0.0", isNew: false },
+    { DepartmentId: 2, hasBarcode: true,  code: "3574661685960", text: "crem",                     taxId: 1, buy: "0,00", sell: "1,99", unitId: 1, deposit: false, depositId: "", tare: "0.0", isNew: false },
+    { DepartmentId: 1, hasBarcode: false, code: "1",             text: "Salat",                    taxId: 2, buy: "0,00", sell: "0,50", unitId: 3, deposit: false, depositId: "", tare: "0.0", isNew: false },
+    { DepartmentId: 4, hasBarcode: true,  code: "90448638",      text: "Red Bull Aprikose Erdbeer", taxId: 1, buy: "0,00", sell: "1,80", unitId: 1, deposit: true,  depositId: "", tare: "0.0", isNew: false },
+    { DepartmentId: 4, hasBarcode: true,  code: "8690793010052", text: "Erikli",                   taxId: 1, buy: "0,00", sell: "0,80", unitId: 1, deposit: false, depositId: "", tare: "0.0", isNew: false }
+  ];
+
+  var STORE_KEY = "kasse.artikel.v1";
+
+  /* ============================================================
+     Bilder
+     Images.csv: article_no;image_uri;article_type_id
+     Die Datei war im Export der Kasse leer und der Ordner
+     DeltaMasterDataImages ebenfalls — die Schreibweise von
+     image_uri ist daher geraten: Dateiname im Bilder-Ordner.
+     Muss einmal an der Kasse gegengeprüft werden.
+     ============================================================ */
+
+  var IMAGE_DIR = "DeltaMasterDataImages";
+  var IMAGE_TYPE_ID = "0";
+  var IMG_MAX_PX = 640;
+  var IMG_QUALITY = 0.82;
+
+  /* ---------- Bild-Speicher (IndexedDB, weil localStorage zu klein ist) ---------- */
+
+  var db = null;
+
+  function openDb() {
+    return new Promise(function (resolve) {
+      if (db) { resolve(db); return; }
+      if (!window.indexedDB) { resolve(null); return; }
+      var req = indexedDB.open("kasse-bilder", 1);
+      req.onupgradeneeded = function () {
+        req.result.createObjectStore("images");
+      };
+      req.onsuccess = function () { db = req.result; resolve(db); };
+      req.onerror = function () { resolve(null); };
+    });
+  }
+
+  function putImage(code, blob) {
+    return openDb().then(function (d) {
+      if (!d) return false;
+      return new Promise(function (resolve) {
+        var tx = d.transaction("images", "readwrite");
+        tx.objectStore("images").put(blob, code);
+        tx.oncomplete = function () { resolve(true); };
+        tx.onerror = function () { resolve(false); };
+      });
+    });
+  }
+
+  function getImage(code) {
+    return openDb().then(function (d) {
+      if (!d) return null;
+      return new Promise(function (resolve) {
+        var req = d.transaction("images", "readonly").objectStore("images").get(code);
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { resolve(null); };
+      });
+    });
+  }
+
+  function deleteImage(code) {
+    return openDb().then(function (d) {
+      if (!d) return;
+      return new Promise(function (resolve) {
+        var tx = d.transaction("images", "readwrite");
+        tx.objectStore("images").delete(code);
+        tx.oncomplete = resolve;
+        tx.onerror = resolve;
+      });
+    });
+  }
+
+  // Handyfotos sind 3–8 MB — das würde den Speicher sprengen und den
+  // Import verlangsamen. Auf Kachelgröße herunterrechnen.
+  function shrink(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, IMG_MAX_PX / Math.max(img.width, img.height));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) {
+          b ? resolve(b) : reject(new Error("Bild konnte nicht umgewandelt werden"));
+        }, "image/jpeg", IMG_QUALITY);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error("Bild konnte nicht gelesen werden"));
+      };
+      img.src = url;
+    });
+  }
+
+  /* ---------- ZIP (unkomprimiert; JPEG und CSV brauchen es nicht) ---------- */
+
+  var crcTable = (function () {
+    var t = new Uint32Array(256);
+    for (var i = 0; i < 256; i++) {
+      var c = i;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function zip(entries) {
+    var enc = new TextEncoder();
+    var chunks = [];
+    var central = [];
+    var offset = 0;
+
+    entries.forEach(function (e) {
+      var nameBytes = enc.encode(e.name);
+      var data = e.bytes;
+      var sum = crc32(data);
+
+      var local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, 0x04034b50, true);
+      local.setUint16(4, 20, true);
+      local.setUint16(6, 0x0800, true);   // Dateinamen als UTF-8
+      local.setUint16(8, 0, true);        // Methode 0 = gespeichert
+      local.setUint16(10, 0, true);
+      local.setUint16(12, 0x21, true);    // feste Uhrzeit
+      local.setUint32(14, sum, true);
+      local.setUint32(18, data.length, true);
+      local.setUint32(22, data.length, true);
+      local.setUint16(26, nameBytes.length, true);
+      local.setUint16(28, 0, true);
+
+      chunks.push(new Uint8Array(local.buffer), nameBytes, data);
+
+      var cd = new DataView(new ArrayBuffer(46));
+      cd.setUint32(0, 0x02014b50, true);
+      cd.setUint16(4, 20, true);
+      cd.setUint16(6, 20, true);
+      cd.setUint16(8, 0x0800, true);
+      cd.setUint16(10, 0, true);
+      cd.setUint16(12, 0, true);
+      cd.setUint16(14, 0x21, true);
+      cd.setUint32(16, sum, true);
+      cd.setUint32(20, data.length, true);
+      cd.setUint32(24, data.length, true);
+      cd.setUint16(28, nameBytes.length, true);
+      cd.setUint16(30, 0, true);
+      cd.setUint16(32, 0, true);
+      cd.setUint16(34, 0, true);
+      cd.setUint16(36, 0, true);
+      cd.setUint32(38, 0, true);
+      cd.setUint32(42, offset, true);
+
+      central.push(new Uint8Array(cd.buffer), nameBytes);
+      offset += 30 + nameBytes.length + data.length;
+    });
+
+    var cdSize = central.reduce(function (n, c) { return n + c.length; }, 0);
+    var end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, entries.length, true);
+    end.setUint16(10, entries.length, true);
+    end.setUint32(12, cdSize, true);
+    end.setUint32(16, offset, true);
+    end.setUint16(20, 0, true);
+
+    return new Blob(chunks.concat(central, [new Uint8Array(end.buffer)]), { type: "application/zip" });
+  }
+
+  /* ---------- State ---------- */
+
+  var state = {
+    articles: SEED_ARTICLES.slice(),
+    depts: SEED_DEPTS.slice(),
+    listFilter: "new",
+    // Der Import der Kasse löscht je Rubrik alles und legt es neu an
+    // (Delta-A DCO, Technische Anleitung 2.3, Abschnitt 9.6).
+    // Ein Export nur der neuen Artikel würde den Bestand löschen.
+    exportScope: "all"
+  };
+
+  var draft = null;
+  var editIndex = -1;
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        articles: state.articles,
+        depts: state.depts
+      }));
+    } catch (e) {
+      toast("Speichern fehlgeschlagen — Speicher voll?");
+    }
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data && Array.isArray(data.articles)) state.articles = data.articles;
+      if (data && Array.isArray(data.depts) && data.depts.length) state.depts = data.depts;
+    } catch (e) { /* defekter Speicher: Seed behalten */ }
+  }
+
+  /* ---------- Helpers ---------- */
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function taxById(id) {
+    for (var i = 0; i < TAXES.length; i++) if (TAXES[i].id === id) return TAXES[i];
+    return TAXES[0];
+  }
+
+  function deptById(id) {
+    for (var i = 0; i < state.depts.length; i++) if (state.depts[i].Id === id) return state.depts[i];
+    return null;
+  }
+
+  // "2,99" oder "2.99" -> 2.99 ; ungültig -> NaN
+  function parseNum(str) {
+    if (str == null) return NaN;
+    var s = String(str).trim().replace(",", ".");
+    if (s === "") return NaN;
+    return Number(s);
+  }
+
+  function de(n) {
+    return (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
+  }
+
+  // Netto aus Brutto: bestätigt an allen 6 Original-Artikeln
+  function netFromGross(gross, taxId) {
+    var rate = taxById(taxId).rate;
+    return gross / (1 + rate / 100);
+  }
+
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("is-shown");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.classList.remove("is-shown"); }, 2200);
+  }
+
+  function findByCode(code, skipIndex) {
+    for (var i = 0; i < state.articles.length; i++) {
+      if (i === skipIndex) continue;
+      if (state.articles[i].code === code) return state.articles[i];
+    }
+    return null;
+  }
+
+  function newArticles() {
+    return state.articles.filter(function (a) { return a.isNew; });
+  }
+
+  // Waagenartikel tragen statt eines Barcodes eine fortlaufende Nummer ab 1.
+  // Die niedrigste freie Nummer suchen, damit Lücken wieder aufgefüllt werden.
+  function nextPlu() {
+    var used = {};
+    state.articles.forEach(function (a) {
+      if (/^\d+$/.test(a.code)) used[parseInt(a.code, 10)] = true;
+    });
+    var n = 1;
+    while (used[n]) n++;
+    return String(n);
+  }
+
+  /* ---------- CSV bauen ---------- */
+
+  function clean(v) {
+    return String(v == null ? "" : v).replace(/[;\r\n]/g, " ").trim();
+  }
+
+  function articleRow(a) {
+    var gross = parseNum(a.sell);
+    if (isNaN(gross)) gross = 0;
+    var net = de(netFromGross(gross, a.taxId));
+    var isScale = a.unitId === 3;
+
+    return [
+      a.DepartmentId,
+      a.hasBarcode ? "X" : "N",
+      clean(a.code),
+      clean(a.code),
+      clean(a.text),
+      "N",                       // isNegativePrice
+      a.taxId,
+      clean(a.buy) || "0,00",
+      net,
+      de(gross),
+      a.unitId,
+      clean(a.depositId),        // deposit_id
+      clean(a.tare) || "0.0",    // Punkt, nicht Komma
+      a.deposit ? "X" : "N",
+      "N",                       // isPriceLimitCheck
+      "0.0",                     // priceLimit
+      "N",                       // isCouponArticle
+      "N",                       // isVariant
+      "N",                       // isNfc
+      "0",                       // supplementId
+      isScale ? "X" : "N"
+    ].join(";");
+  }
+
+  function buildArticleCsv(rows) {
+    var lines = [ARTICLE_HEADER];
+    for (var i = 0; i < rows.length; i++) lines.push(articleRow(rows[i]));
+    return lines.join("\n") + "\n";
+  }
+
+  function buildDeptCsv() {
+    var lines = ["GroupId;Id;CategoryName;ToGo;"];
+    state.depts.forEach(function (d) {
+      lines.push([d.GroupId, d.Id, clean(d.name), d.ToGo].join(";") + ";");
+    });
+    return lines.join("\n") + "\n";
+  }
+
+  function buildGroupCsv() {
+    var lines = ["CategoryId;Id;GroupName;"];
+    state.depts.forEach(function (d) {
+      lines.push(["1", d.GroupId, clean(d.name)].join(";") + ";");
+    });
+    return lines.join("\n") + "\n";
+  }
+
+  function imageName(code) {
+    return clean(code).replace(/[^A-Za-z0-9_-]/g, "_") + ".jpg";
+  }
+
+  function buildImagesCsv(rows) {
+    var lines = ["article_no;image_uri;article_type_id"];
+    rows.forEach(function (a) {
+      if (!a.hasImage) return;
+      lines.push([clean(a.code), imageName(a.code), IMAGE_TYPE_ID].join(";"));
+    });
+    return lines.join("\n") + "\n";
+  }
+
+  function csvBlob(text) {
+    // Die Kasse erwartet UTF-8 mit BOM — ohne den zerlegt sie die Umlaute.
+    return new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8" });
+  }
+
+  function download(name, text) {
+    var url = URL.createObjectURL(csvBlob(text));
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /* ---------- CSV lesen ---------- */
+
+  function importArticleCsv(text) {
+    var lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
+    if (!lines.length) { toast("Datei ist leer"); return; }
+
+    var head = lines[0].toLowerCase();
+    if (head.indexOf("departmentid") === -1) {
+      toast("Das sieht nicht nach Article.csv aus");
+      return;
+    }
+
+    var added = 0;
+    for (var i = 1; i < lines.length; i++) {
+      var c = lines[i].split(";");
+      if (c.length < 11) continue;
+
+      var code = (c[2] || "").trim();
+      if (findByCode(code, -1)) continue;
+
+      state.articles.push({
+        DepartmentId: parseInt(c[0], 10) || 1,
+        hasBarcode: (c[1] || "").trim().toUpperCase() === "X",
+        code: code,
+        text: (c[4] || "").trim(),
+        taxId: parseInt(c[6], 10) || 1,
+        buy: (c[7] || "0,00").trim(),
+        sell: (c[9] || "0,00").trim(),
+        unitId: parseInt(c[10], 10) || 1,
+        depositId: (c[11] || "").trim(),
+        tare: (c[12] || "0.0").trim(),
+        deposit: (c[13] || "").trim().toUpperCase() === "X",
+        hasImage: false,
+        isNew: false
+      });
+      added++;
+    }
+
+    save();
+    renderAll();
+    toast(added + " vorhandene Artikel eingelesen");
+  }
+
+  /* ---------- Rendern ---------- */
+
+  function renderCount() {
+    $("countPill").textContent = newArticles().length + " neu";
+  }
+
+  function renderList() {
+    var wrap = $("articleList");
+    var rows = state.listFilter === "new" ? newArticles() : state.articles;
+
+    if (!rows.length) {
+      wrap.innerHTML = '<p class="empty">' +
+        (state.listFilter === "new"
+          ? "Noch keine neuen Artikel.<br>Scanne einen Barcode, um anzufangen."
+          : "Keine Artikel vorhanden.") +
+        "</p>";
+      return;
+    }
+
+    wrap.textContent = "";
+    rows.forEach(function (a) {
+      var idx = state.articles.indexOf(a);
+      var d = deptById(a.DepartmentId);
+      var btn = document.createElement("button");
+      btn.className = "item";
+      btn.type = "button";
+
+      var name = document.createElement("div");
+      name.className = "item-name";
+      name.textContent = a.text || "(ohne Name)";
+      if (a.isNew) {
+        var b = document.createElement("span");
+        b.className = "badge";
+        b.textContent = "neu";
+        name.appendChild(b);
+      }
+
+      var meta = document.createElement("div");
+      meta.className = "item-meta";
+      meta.textContent = (a.hasBarcode ? a.code : "PLU " + a.code) +
+        " · " + (d ? d.name : "?") +
+        " · " + taxById(a.taxId).label.replace(/\s/g, "") +
+        (a.unitId === 3 ? " · kg" : "") +
+        (a.deposit ? " · Pfand" : "") +
+        (a.hasImage ? " · Foto" : "");
+
+      var price = document.createElement("div");
+      price.className = "item-price";
+      var g = parseNum(a.sell);
+      price.textContent = (isNaN(g) ? "—" : de(g) + " €");
+
+      btn.appendChild(name);
+      btn.appendChild(price);
+      btn.appendChild(meta);
+      btn.addEventListener("click", function () { openSheet(idx); });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function renderDepts() {
+    var wrap = $("deptList");
+    wrap.textContent = "";
+    state.depts.forEach(function (d) {
+      var used = state.articles.filter(function (a) { return a.DepartmentId === d.Id; }).length;
+      var row = document.createElement("div");
+      row.className = "item";
+      row.style.cursor = "default";
+
+      var name = document.createElement("div");
+      name.className = "item-name";
+      name.textContent = d.name;
+
+      var meta = document.createElement("div");
+      meta.className = "item-meta";
+      meta.textContent = "Id " + d.Id + " · " + used + " Artikel" + (d.ToGo ? " · ToGo" : "");
+
+      row.appendChild(name);
+      row.appendChild(meta);
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderScopeHint() {
+    var fotos = state.articles.filter(function (a) { return a.hasImage; }).length;
+    $("scopeHint").innerHTML = "Enthält alle <strong>" + state.articles.length +
+      "</strong> Artikel, deine Warengruppen und <strong>" + fotos +
+      "</strong> Fotos — fertig für den Stick.";
+
+    var warn = $("scopeWarn");
+    if (state.exportScope === "new") {
+      warn.innerHTML = "Nur für Notfälle: Deine Kasse <strong>löscht beim Import alle Artikel</strong> und legt die aus der Datei neu an. Mit dieser Auswahl wäre dein Bestand danach weg.";
+      warn.hidden = false;
+    } else {
+      warn.hidden = true;
+    }
+  }
+
+  function renderAll() {
+    renderCount();
+    renderList();
+    renderDepts();
+    renderScopeHint();
+  }
+
+  /* ---------- Chips im Formular ---------- */
+
+  function buildDeptChips() {
+    var wrap = $("deptChips");
+    wrap.textContent = "";
+    state.depts.forEach(function (d) {
+      var b = document.createElement("button");
+      b.className = "chip";
+      b.type = "button";
+      b.textContent = d.name;
+      b.setAttribute("aria-pressed", String(draft.DepartmentId === d.Id));
+      b.addEventListener("click", function () {
+        draft.DepartmentId = d.Id;
+        buildDeptChips();
+      });
+      wrap.appendChild(b);
+    });
+  }
+
+  function buildTaxChips() {
+    var wrap = $("taxChips");
+    var sel = $("taxSelect");
+    wrap.textContent = "";
+
+    QUICK_TAX.forEach(function (id) {
+      var t = taxById(id);
+      var b = document.createElement("button");
+      b.className = "chip mono";
+      b.type = "button";
+      b.textContent = t.label;
+      b.setAttribute("aria-pressed", String(draft.taxId === id));
+      b.addEventListener("click", function () {
+        draft.taxId = id;
+        sel.hidden = true;
+        buildTaxChips();
+        updateNetHint();
+      });
+      wrap.appendChild(b);
+    });
+
+    var isOther = QUICK_TAX.indexOf(draft.taxId) === -1;
+    var other = document.createElement("button");
+    other.className = "chip";
+    other.type = "button";
+    other.textContent = isOther ? taxById(draft.taxId).label : "Andere …";
+    other.setAttribute("aria-pressed", String(isOther));
+    other.addEventListener("click", function () { sel.hidden = !sel.hidden; });
+    wrap.appendChild(other);
+
+    if (!sel.options.length) {
+      TAXES.forEach(function (t) {
+        var o = document.createElement("option");
+        o.value = String(t.id);
+        o.textContent = t.label;
+        sel.appendChild(o);
+      });
+      sel.addEventListener("change", function () {
+        draft.taxId = parseInt(sel.value, 10);
+        buildTaxChips();
+        updateNetHint();
+      });
+    }
+    sel.value = String(draft.taxId);
+  }
+
+  function buildUnitChips() {
+    var btns = $("unitChips").querySelectorAll(".chip");
+    Array.prototype.forEach.call(btns, function (b) {
+      var u = parseInt(b.getAttribute("data-unit"), 10);
+      b.setAttribute("aria-pressed", String(draft.unitId === u));
+    });
+    $("codeLabel").textContent = draft.unitId === 3 ? "PLU-Nummer" : "Barcode";
+  }
+
+  function updateNetHint() {
+    var g = parseNum($("fPrice").value);
+    var t = taxById(draft.taxId);
+    if (isNaN(g)) {
+      $("netHint").textContent = "Netto wird automatisch berechnet.";
+      return;
+    }
+    $("netHint").innerHTML = "Netto bei " + t.label + ": <strong>" + de(netFromGross(g, draft.taxId)) + " €</strong>";
+  }
+
+  function updateDupWarn() {
+    var w = $("dupWarn");
+    var hit = draft.code ? findByCode(draft.code, editIndex) : null;
+    if (hit) {
+      w.textContent = "Achtung: „" + (hit.text || "?") + "“ hat schon diesen Code.";
+      w.classList.add("is-shown");
+    } else {
+      w.classList.remove("is-shown");
+    }
+  }
+
+  /* ---------- Sheet ---------- */
+
+  function blankDraft(code, hasBarcode) {
+    var lastDept = state.depts.length ? state.depts[0].Id : 1;
+    var prev = newArticles();
+    if (prev.length) lastDept = prev[prev.length - 1].DepartmentId;
+    return {
+      DepartmentId: lastDept,
+      hasBarcode: hasBarcode,
+      code: code || (hasBarcode ? "" : nextPlu()),
+      text: "",
+      taxId: 1,
+      buy: "0,00",
+      sell: "",
+      unitId: hasBarcode ? 1 : 3,
+      deposit: false,
+      depositId: "",
+      tare: "0.0",
+      hasImage: false,
+      isNew: true
+    };
+  }
+
+  var thumbUrl = null;
+
+  function renderThumb() {
+    var el = $("thumb");
+    if (thumbUrl) { URL.revokeObjectURL(thumbUrl); thumbUrl = null; }
+
+    if (!draft || !draft.hasImage) {
+      el.style.backgroundImage = "";
+      el.setAttribute("data-empty", "true");
+      $("photoDel").hidden = true;
+      $("photoBtn").textContent = "Foto aufnehmen";
+      return;
+    }
+
+    $("photoDel").hidden = false;
+    $("photoBtn").textContent = "Foto ersetzen";
+    el.setAttribute("data-empty", "false");
+
+    var code = draft.code;
+    getImage(code).then(function (blob) {
+      // Zwischenzeitlich anderen Artikel geöffnet: Ergebnis verwerfen
+      if (!blob || !draft || draft.code !== code) return;
+      thumbUrl = URL.createObjectURL(blob);
+      el.style.backgroundImage = 'url("' + thumbUrl + '")';
+    });
+  }
+
+  function openSheet(index) {
+    editIndex = typeof index === "number" ? index : -1;
+
+    if (editIndex >= 0) {
+      draft = JSON.parse(JSON.stringify(state.articles[editIndex]));
+      $("sheetTitle").textContent = "Artikel bearbeiten";
+      $("deleteBtn").hidden = false;
+      $("saveBtn").textContent = "Übernehmen";
+    } else {
+      $("sheetTitle").textContent = "Neuer Artikel";
+      $("deleteBtn").hidden = true;
+      $("saveBtn").textContent = "Speichern & weiter";
+    }
+
+    $("codeValue").textContent = draft.code || "—";
+    $("fName").value = draft.text;
+    $("fPrice").value = draft.sell;
+    $("fBuy").value = draft.buy;
+    $("fTare").value = draft.tare;
+    $("fDepositId").value = draft.depositId;
+    $("fDeposit").setAttribute("aria-pressed", String(draft.deposit));
+
+    buildDeptChips();
+    buildTaxChips();
+    buildUnitChips();
+    updateNetHint();
+    updateDupWarn();
+    renderThumb();
+
+    $("sheet").classList.add("is-open");
+    stopCam();
+    setTimeout(function () { $("fName").focus(); }, 60);
+  }
+
+  function closeSheet() {
+    $("sheet").classList.remove("is-open");
+    draft = null;
+    editIndex = -1;
+  }
+
+  function commit() {
+    draft.text = $("fName").value.trim();
+    draft.sell = $("fPrice").value.trim();
+    draft.buy = $("fBuy").value.trim() || "0,00";
+    draft.tare = $("fTare").value.trim() || "0.0";
+    draft.depositId = $("fDepositId").value.trim();
+
+    if (!draft.text) { toast("Bitte einen Namen eingeben"); $("fName").focus(); return; }
+    if (!draft.code) { toast("Bitte Barcode oder PLU eingeben"); return; }
+
+    var g = parseNum(draft.sell);
+    if (isNaN(g) || g < 0) { toast("Bitte einen gültigen Preis eingeben"); $("fPrice").focus(); return; }
+    draft.sell = de(g);
+
+    var b = parseNum(draft.buy);
+    draft.buy = isNaN(b) ? "0,00" : de(b);
+
+    if (editIndex >= 0) {
+      state.articles[editIndex] = draft;
+      save();
+      renderAll();
+      closeSheet();
+      toast("Geändert");
+    } else {
+      var name = draft.text;
+      state.articles.push(draft);
+      save();
+      renderAll();
+      closeSheet();
+      toast("„" + name + "“ gespeichert");
+      if ($("view-scan").classList.contains("is-active")) startCam();
+    }
+  }
+
+  /* ---------- Kamera / Scanner ---------- */
+
+  var stream = null;
+  var detector = null;
+  var scanning = false;
+  var lastHit = { code: "", at: 0 };
+
+  function camSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && "BarcodeDetector" in window;
+  }
+
+  function showCamNotice(msg) {
+    var n = $("camNotice");
+    n.innerHTML = msg;
+    n.hidden = false;
+  }
+
+  function startCam() {
+    if (scanning) return;
+
+    if (!camSupported()) {
+      showCamNotice("Dieses Handy kann den Barcode nicht über den Browser lesen. Nutze <strong>Chrome auf Android</strong>, oder lege den Artikel über „Ohne Barcode anlegen“ an und tippe den Code ein.");
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
+    }).then(function (s) {
+      stream = s;
+      var v = $("video");
+      v.srcObject = s;
+      return v.play();
+    }).then(function () {
+      $("scanner").classList.add("is-live");
+      $("camNotice").hidden = true;
+      scanning = true;
+
+      return window.BarcodeDetector.getSupportedFormats().then(function (all) {
+        var want = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf"];
+        var use = want.filter(function (f) { return all.indexOf(f) !== -1; });
+        detector = new window.BarcodeDetector(use.length ? { formats: use } : undefined);
+        tick();
+      });
+    }).catch(function (err) {
+      scanning = false;
+      if (err && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
+        showCamNotice("Die Kamera ist blockiert. Tippe in der Adressleiste auf das Schloss-Symbol und erlaube den Kamerazugriff.");
+      } else if (err && err.name === "NotFoundError") {
+        showCamNotice("Keine Kamera gefunden.");
+      } else {
+        showCamNotice("Kamera lässt sich nicht starten. Lege den Artikel über „Ohne Barcode anlegen“ an.");
+      }
+    });
+  }
+
+  function stopCam() {
+    scanning = false;
+    if (stream) {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      stream = null;
+    }
+    $("video").srcObject = null;
+    $("scanner").classList.remove("is-live");
+  }
+
+  function tick() {
+    if (!scanning || !detector) return;
+    var v = $("video");
+
+    if (v.readyState < 2) {
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    detector.detect(v).then(function (codes) {
+      if (codes && codes.length) onHit(codes[0].rawValue);
+    }).catch(function () { /* einzelner Frame fehlgeschlagen: weiter */ })
+      .then(function () {
+        if (scanning) setTimeout(tick, 180);
+      });
+  }
+
+  function onHit(code) {
+    code = String(code || "").trim();
+    if (!code) return;
+
+    var now = Date.now();
+    if (code === lastHit.code && now - lastHit.at < 2500) return;
+    lastHit = { code: code, at: now };
+
+    if (navigator.vibrate) navigator.vibrate(40);
+
+    var existing = findByCode(code, -1);
+    if (existing) {
+      openSheet(state.articles.indexOf(existing));
+      toast("Artikel ist schon angelegt");
+      return;
+    }
+
+    draft = blankDraft(code, true);
+    openSheet(-1);
+  }
+
+  /* ---------- Views ---------- */
+
+  function showView(name) {
+    var views = document.querySelectorAll(".view");
+    Array.prototype.forEach.call(views, function (v) {
+      v.classList.toggle("is-active", v.id === "view-" + name);
+    });
+    var tabs = document.querySelectorAll(".tab");
+    Array.prototype.forEach.call(tabs, function (t) {
+      t.setAttribute("aria-selected", String(t.getAttribute("data-view") === name));
+    });
+    if (name !== "scan") stopCam();
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- Events ---------- */
+
+  document.querySelectorAll(".tab").forEach(function (t) {
+    t.addEventListener("click", function () { showView(t.getAttribute("data-view")); });
+  });
+
+  $("startCam").addEventListener("click", startCam);
+
+  // Die nächste freie Nummer steht schon im Formular — kein Nachfragen nötig.
+  $("manualBtn").addEventListener("click", function () {
+    draft = blankDraft("", false);
+    openSheet(-1);
+  });
+
+  $("editCode").addEventListener("click", function () {
+    var code = window.prompt("Barcode / PLU:", draft.code);
+    if (code === null) return;
+
+    var next = code.trim();
+    var prev = draft.code;
+    if (next === prev) return;
+
+    var move = draft.hasImage && prev
+      ? getImage(prev).then(function (b) {
+          return b ? putImage(next, b).then(function () { return deleteImage(prev); }) : null;
+        })
+      : Promise.resolve();
+
+    move.then(function () {
+      draft.code = next;
+      $("codeValue").textContent = next || "—";
+      updateDupWarn();
+      renderThumb();
+    });
+  });
+
+  $("photoInput").addEventListener("change", function (e) {
+    var file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file || !draft) return;
+
+    if (!draft.code) { toast("Erst Barcode oder Nummer festlegen"); return; }
+
+    shrink(file).then(function (blob) {
+      return putImage(draft.code, blob);
+    }).then(function (okSaved) {
+      if (!okSaved) { toast("Foto konnte nicht gespeichert werden"); return; }
+      draft.hasImage = true;
+      renderThumb();
+      toast("Foto übernommen");
+    }).catch(function (err) {
+      toast(err.message || "Foto konnte nicht verarbeitet werden");
+    });
+  });
+
+  $("photoDel").addEventListener("click", function () {
+    if (!draft) return;
+    deleteImage(draft.code).then(function () {
+      draft.hasImage = false;
+      renderThumb();
+    });
+  });
+
+  $("closeSheet").addEventListener("click", closeSheet);
+  $("saveBtn").addEventListener("click", commit);
+
+  $("deleteBtn").addEventListener("click", function () {
+    if (editIndex < 0) return;
+    if (!window.confirm("Diesen Artikel aus der Liste entfernen?")) return;
+    var gone = state.articles.splice(editIndex, 1)[0];
+    if (gone && gone.hasImage) deleteImage(gone.code);
+    save();
+    renderAll();
+    closeSheet();
+    toast("Entfernt");
+  });
+
+  $("fPrice").addEventListener("input", updateNetHint);
+
+  $("fDeposit").addEventListener("click", function () {
+    draft.deposit = !draft.deposit;
+    this.setAttribute("aria-pressed", String(draft.deposit));
+  });
+
+  $("unitChips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip");
+    if (!b) return;
+    draft.unitId = parseInt(b.getAttribute("data-unit"), 10);
+    // Waagenartikel tragen eine PLU, keinen Barcode — so steht es in der Original-Datei.
+    draft.hasBarcode = draft.unitId !== 3;
+    buildUnitChips();
+  });
+
+  document.querySelectorAll("[data-filter]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.listFilter = b.getAttribute("data-filter");
+      document.querySelectorAll("[data-filter]").forEach(function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      renderList();
+    });
+  });
+
+  document.querySelectorAll("[data-scope]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.exportScope = b.getAttribute("data-scope");
+      document.querySelectorAll("[data-scope]").forEach(function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      renderScopeHint();
+    });
+  });
+
+  $("newDeptToGo").addEventListener("click", function () {
+    var on = this.getAttribute("aria-pressed") === "true";
+    this.setAttribute("aria-pressed", String(!on));
+  });
+
+  $("addDeptBtn").addEventListener("click", function () {
+    var name = $("newDeptName").value.trim();
+    if (!name) { toast("Bitte einen Namen eingeben"); return; }
+
+    var maxId = 0;
+    state.depts.forEach(function (d) {
+      if (d.Id > maxId) maxId = d.Id;
+      if (d.GroupId > maxId) maxId = d.GroupId;
+    });
+
+    state.depts.push({
+      Id: maxId + 1,
+      GroupId: maxId + 1,
+      name: name,
+      ToGo: $("newDeptToGo").getAttribute("aria-pressed") === "true" ? 1 : 0
+    });
+
+    $("newDeptName").value = "";
+    $("newDeptToGo").setAttribute("aria-pressed", "false");
+    save();
+    renderAll();
+    toast("„" + name + "“ angelegt");
+  });
+
+  function exportRows() {
+    return state.exportScope === "new" ? newArticles() : state.articles;
+  }
+
+  $("dlArticle").addEventListener("click", function () {
+    var rows = exportRows();
+    if (!rows.length) { toast("Keine Artikel zum Exportieren"); return; }
+    download("Article.csv", buildArticleCsv(rows));
+    toast("Article.csv erstellt");
+  });
+
+  $("dlDept").addEventListener("click", function () {
+    download("Department.csv", buildDeptCsv());
+    setTimeout(function () { download("Group.csv", buildGroupCsv()); }, 400);
+    toast("Department.csv + Group.csv erstellt");
+  });
+
+  $("dlImages").addEventListener("click", function () {
+    download("Images.csv", buildImagesCsv(exportRows()));
+    toast("Images.csv erstellt");
+  });
+
+  // Alle Dateien inklusive Bilderordner in einem Paket
+  function buildZip() {
+    var rows = state.articles;
+    var enc = new TextEncoder();
+    var entries = [
+      { name: "Article.csv", bytes: enc.encode("﻿" + buildArticleCsv(rows)) },
+      { name: "Department.csv", bytes: enc.encode("﻿" + buildDeptCsv()) },
+      { name: "Group.csv", bytes: enc.encode("﻿" + buildGroupCsv()) },
+      { name: "Images.csv", bytes: enc.encode("﻿" + buildImagesCsv(rows)) }
+    ];
+
+    var withImg = rows.filter(function (a) { return a.hasImage; });
+    return Promise.all(withImg.map(function (a) {
+      return getImage(a.code).then(function (blob) {
+        if (!blob) return null;
+        return blob.arrayBuffer().then(function (buf) {
+          return { name: IMAGE_DIR + "/" + imageName(a.code), bytes: new Uint8Array(buf) };
+        });
+      });
+    })).then(function (imgs) {
+      imgs.forEach(function (e) { if (e) entries.push(e); });
+      return zip(entries);
+    });
+  }
+
+  $("dlZip").addEventListener("click", function () {
+    var btn = $("dlZip");
+    btn.disabled = true;
+    buildZip().then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "Kassen-Import.zip";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      toast("ZIP erstellt");
+    }).catch(function () {
+      toast("ZIP konnte nicht erstellt werden");
+    }).then(function () {
+      btn.disabled = false;
+    });
+  });
+
+  // Teilen nur anbieten, wenn das Handy Dateien wirklich teilen kann.
+  (function initShare() {
+    if (!navigator.canShare || !navigator.share) return;
+    var probe = new File(["x"], "p.zip", { type: "application/zip" });
+    if (!navigator.canShare({ files: [probe] })) return;
+
+    var btn = $("shareBtn");
+    btn.hidden = false;
+    btn.addEventListener("click", function () {
+      buildZip().then(function (blob) {
+        return navigator.share({
+          files: [new File([blob], "Kassen-Import.zip", { type: "application/zip" })],
+          title: "Kassen-Import"
+        });
+      }).catch(function () { /* abgebrochen */ });
+    });
+  })();
+
+  $("importFile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { importArticleCsv(String(r.result)); };
+    r.onerror = function () { toast("Datei konnte nicht gelesen werden"); };
+    r.readAsText(f, "utf-8");
+    e.target.value = "";
+  });
+
+  $("resetBtn").addEventListener("click", function () {
+    var n = newArticles().length;
+    if (!n) { toast("Es gibt keine neuen Artikel"); return; }
+    if (!window.confirm("Alle " + n + " neuen Artikel samt Fotos löschen? Das lässt sich nicht rückgängig machen.")) return;
+    newArticles().forEach(function (a) { if (a.hasImage) deleteImage(a.code); });
+    state.articles = state.articles.filter(function (a) { return !a.isNew; });
+    save();
+    renderAll();
+    toast("Neue Artikel gelöscht");
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && $("sheet").classList.contains("is-open")) closeSheet();
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stopCam();
+  });
+
+  /* ---------- Start ---------- */
+
+  load();
+  renderAll();
+
+  if (!camSupported()) {
+    showCamNotice("Dieses Handy kann den Barcode nicht über den Browser lesen. Nutze <strong>Chrome auf Android</strong>, oder tippe den Code über „Ohne Barcode anlegen“ ein.");
+  }
+})();
+</script>
