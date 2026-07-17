@@ -2067,6 +2067,24 @@
     toast("Images.csv erstellt");
   });
 
+  // Unveränderte Stammdaten aus dem Original-Export der Kasse.
+  // Der Kassen-Import verarbeitet Obergruppen, Warengruppen, Artikel, Steuer,
+  // Beilagen und Zusatztexte als zusammengehörigen Satz — deshalb müssen diese
+  // Dateien mit auf den Stick, byte-genau wie die Kasse sie geschrieben hat.
+  // (SupplementText.csv ist im Original als einzige Datei ohne BOM.)
+  // Staff-, Rollen- und Firmendaten bleiben bewusst außen vor: nicht Teil der
+  // Artikel-Rubriken, und Staff.csv enthält Passwort-Hashes.
+  var BOM = String.fromCharCode(0xFEFF);
+  var STATIC_FILES = {
+    "Category.csv": BOM + "CategoryName;\nGeneric;\n",
+    "TaxGroup.csv": BOM + "CountryCode;Name;Rate;\nDEU;MwSt %19;19.0\nDEU;MwSt %7;7.0\nDEU;MwSt %8.4;8.4\nDEU;MwSt %5.5;5.5\nDEU;Nicht steuerbar 0%;0.0\nDEU;Umsatzsteuerfrei 0%;0.0\nDEU;Umsatzsteuer nicht ermittelbar 0%;0.0\n",
+    "Supplement.csv": BOM + "id;title;supplementType;isMultiSelect;isFull;\n",
+    "SupplementRelation.csv": BOM + "id;parent_id;child_id;position;is_required;type;\n",
+    "SupplementText.csv": "id;name;description;\n",
+    "Variant.csv": BOM + "id;name;\n",
+    "VariantDetails.csv": BOM + "id;variant_id;article_id;value;\n"
+  };
+
   // Alle Dateien inklusive Bilderordner in einem Paket
   function buildZip() {
     var rows = state.articles;
@@ -2077,6 +2095,13 @@
       { name: "Group.csv", bytes: enc.encode("﻿" + buildGroupCsv()) },
       { name: "Images.csv", bytes: enc.encode("﻿" + buildImagesCsv(rows)) }
     ];
+
+    Object.keys(STATIC_FILES).forEach(function (name) {
+      entries.push({ name: name, bytes: enc.encode(STATIC_FILES[name]) });
+    });
+
+    // Der Bilderordner existiert im Kassen-Export immer, auch leer.
+    entries.push({ name: IMAGE_DIR + "/", bytes: new Uint8Array(0) });
 
     var withImg = rows.filter(function (a) { return a.hasImage; });
     return Promise.all(withImg.map(function (a) {
