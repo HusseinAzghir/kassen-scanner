@@ -1969,12 +1969,28 @@ const fdb = initializeFirestore(fbApp, {
   /* ---------- Kamera / Scanner ---------- */
 
   var stream = null;
-  var detector = null;
+  var detector = null;       // schnelle native Erkennung (Android/Chrome)
+  var zxingReader = null;    // Fallback für iPhone (Safari kennt BarcodeDetector nicht)
+  var zxingLib = null;
   var scanning = false;
   var lastHit = { code: "", at: 0 };
 
+  // Die Kamera lässt sich öffnen, sobald getUserMedia da ist. Das Auslesen des
+  // Barcodes macht entweder die eingebaute Erkennung (Android) oder ZXing (iPhone).
   function camSupported() {
-    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && "BarcodeDetector" in window;
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  }
+
+  function hasNativeDetector() {
+    return "BarcodeDetector" in window;
+  }
+
+  function loadZxing() {
+    if (zxingLib) return Promise.resolve(zxingLib);
+    return import("https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/+esm").then(function (z) {
+      zxingLib = z;
+      return z;
+    });
   }
 
   function showCamNotice(msg) {
@@ -1983,11 +1999,24 @@ const fdb = initializeFirestore(fbApp, {
     n.hidden = false;
   }
 
+  function camError(err) {
+    scanning = false;
+    if (err && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
+      showCamNotice("Die Kamera wurde blockiert. Erlaube in den Einstellungen deines Browsers den Kamerazugriff und tippe erneut auf „Kamera starten“.");
+    } else if (err && err.name === "NotFoundError") {
+      showCamNotice("Keine Kamera gefunden.");
+    } else if (err && err.name === "NotReadableError") {
+      showCamNotice("Die Kamera wird gerade von einer anderen App benutzt. Schließe sie und versuche es erneut.");
+    } else {
+      showCamNotice("Kamera lässt sich nicht starten. Lege den Artikel über „Ohne Barcode anlegen“ an.");
+    }
+  }
+
   function startCam() {
     if (scanning) return;
 
     if (!camSupported()) {
-      showCamNotice("Dieses Handy kann den Barcode nicht über den Browser lesen. Nutze <strong>Chrome auf Android</strong>, oder lege den Artikel über „Ohne Barcode anlegen“ an und tippe den Code ein.");
+      showCamNotice("Dieser Browser kann die Kamera nicht öffnen. Lege den Artikel über „Ohne Barcode anlegen“ an und tippe den Code ein.");
       return;
     }
 
@@ -1995,39 +2024,53 @@ const fdb = initializeFirestore(fbApp, {
       video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
     }).then(function (s) {
       stream = s;
-      var v = $("video");
-      v.srcObject = s;
-      return v.play();
-    }).then(function () {
+      scanning = true;
       $("scanner").classList.add("is-live");
       $("camNotice").hidden = true;
-      scanning = true;
 
-      return window.BarcodeDetector.getSupportedFormats().then(function (all) {
-        var want = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf"];
-        var use = want.filter(function (f) { return all.indexOf(f) !== -1; });
-        detector = new window.BarcodeDetector(use.length ? { formats: use } : undefined);
-        tick();
-      });
-    }).catch(function (err) {
-      scanning = false;
-      if (err && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
-        showCamNotice("Die Kamera ist blockiert. Tippe in der Adressleiste auf das Schloss-Symbol und erlaube den Kamerazugriff.");
-      } else if (err && err.name === "NotFoundError") {
-        showCamNotice("Keine Kamera gefunden.");
-      } else {
-        showCamNotice("Kamera lässt sich nicht starten. Lege den Artikel über „Ohne Barcode anlegen“ an.");
+      if (hasNativeDetector()) {
+        var v = $("video");
+        v.srcObject = s;
+        return v.play().then(function () {
+          return window.BarcodeDetector.getSupportedFormats().then(function (all) {
+            var want = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf"];
+            var use = want.filter(function (f) { return all.indexOf(f) !== -1; });
+            detector = new window.BarcodeDetector(use.length ? { formats: use } : undefined);
+            tick();
+          });
+        });
       }
-    });
+
+      // iPhone & Co.: ZXing liest den Barcode fortlaufend aus dem Kamerabild.
+      return loadZxing().then(function (z) {
+        var hints = new Map();
+        hints.set(z.DecodeHintType.POSSIBLE_FORMATS, [
+          z.BarcodeFormat.EAN_13, z.BarcodeFormat.EAN_8, z.BarcodeFormat.UPC_A,
+          z.BarcodeFormat.UPC_E, z.BarcodeFormat.CODE_128, z.BarcodeFormat.CODE_39, z.BarcodeFormat.ITF
+        ]);
+        zxingReader = new z.BrowserMultiFormatReader(hints, 200);
+        return zxingReader.decodeFromStream(s, $("video"), function (result) {
+          if (result && scanning) onHit(result.getText());
+        });
+      }).catch(function () {
+        showCamNotice("Der Barcode-Leser konnte nicht geladen werden. Prüfe die Internetverbindung, oder lege den Artikel über „Ohne Barcode anlegen“ an.");
+      });
+    }).catch(camError);
   }
 
   function stopCam() {
     scanning = false;
+    if (zxingReader) {
+      try { zxingReader.reset(); } catch (e) { /* egal */ }
+      zxingReader = null;
+    }
     if (stream) {
       stream.getTracks().forEach(function (t) { t.stop(); });
       stream = null;
     }
-    $("video").srcObject = null;
+    detector = null;
+    var v = $("video");
+    if (v) v.srcObject = null;
     $("scanner").classList.remove("is-live");
   }
 
@@ -2456,7 +2499,7 @@ const fdb = initializeFirestore(fbApp, {
   renderAll();
 
   if (!camSupported()) {
-    showCamNotice("Dieses Handy kann den Barcode nicht über den Browser lesen. Nutze <strong>Chrome auf Android</strong>, oder tippe den Code über „Ohne Barcode anlegen“ ein.");
+    showCamNotice("Dieser Browser kann die Kamera nicht öffnen. Tippe den Code über „Ohne Barcode anlegen“ ein.");
   }
 })();
 </script>
