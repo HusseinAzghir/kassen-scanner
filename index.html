@@ -764,7 +764,87 @@
   }
 
   .photo-actions > .btn { width: 100%; }
+
+  /* ---------- Login ---------- */
+
+  .auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--ground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .auth-overlay[hidden] { display: none; }
+
+  .auth-card {
+    width: 100%;
+    max-width: 360px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .auth-brand {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--accent);
+  }
+
+  .auth-brand span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin-top: 2px;
+  }
+
+  .auth-hint {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .auth-msg {
+    margin: 0;
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    font-size: 0.8125rem;
+  }
+
+  .auth-msg[hidden] { display: none; }
 </style>
+
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <h1 class="auth-brand">Barakzai Markt<span>Artikel-Erfassung</span></h1>
+    <p class="auth-hint">Bitte mit deinem Mitarbeiter-Zugang anmelden.</p>
+    <div class="field">
+      <label for="loginEmail">E-Mail</label>
+      <input type="email" id="loginEmail" autocomplete="username" inputmode="email" placeholder="name@beispiel.de">
+    </div>
+    <div class="field">
+      <label for="loginPass">Passwort</label>
+      <input type="password" id="loginPass" autocomplete="current-password" placeholder="Passwort">
+    </div>
+    <p class="auth-msg" id="loginMsg" hidden></p>
+    <button class="btn btn-primary btn-block" id="loginBtn">Anmelden</button>
+  </div>
+</div>
 
 <div class="app">
   <header class="topbar">
@@ -845,8 +925,14 @@
 
       <div class="card">
         <h2 class="card-title">Daten</h2>
-        <p class="hint">Alles wird nur auf diesem Handy gespeichert — nichts geht ins Internet.</p>
+        <p class="hint">Die Artikel liegen zentral online — alle angemeldeten Handys sehen dieselbe Liste. „Neue Artikel löschen“ entfernt sie <strong>für alle</strong>.</p>
         <button class="btn btn-danger btn-block" id="resetBtn">Neue Artikel löschen</button>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Angemeldet</h2>
+        <p class="hint">Angemeldet als <strong id="userEmail">—</strong></p>
+        <button class="btn btn-outline btn-block" id="logoutBtn">Abmelden</button>
       </div>
     </section>
   </main>
@@ -965,7 +1051,36 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  setPersistence, browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc,
+  onSnapshot, runTransaction, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+// Öffentliche Firebase-Konfiguration (kein Geheimnis — die Sicherheit machen
+// der Mitarbeiter-Login und die Firestore-Regeln, nicht diese Werte).
+const firebaseConfig = {
+  apiKey: "AIzaSyAAhYAJBUu1S8gUZvfy44dBOs0hRhTbGz8",
+  authDomain: "kasse-barakzai.firebaseapp.com",
+  projectId: "kasse-barakzai",
+  storageBucket: "kasse-barakzai.firebasestorage.app",
+  messagingSenderId: "944097954095",
+  appId: "1:944097954095:web:bb631b2e147155305879da"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+// Lokaler Cache: die App läuft auch offline weiter und synchronisiert später.
+const fdb = initializeFirestore(fbApp, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
 (function () {
   "use strict";
 
@@ -1009,7 +1124,6 @@
     { DepartmentId: 4, hasBarcode: true,  code: "8690793010052", text: "Erikli",                   taxId: 1, buy: "0,00", sell: "0,80", unitId: 1, deposit: false, depositId: "", tare: "0.0", isNew: false }
   ];
 
-  var STORE_KEY = "kasse.artikel.v1";
   // Android wirft die Seite aus dem Speicher, während die Kamera-App offen ist.
   // Der Formular-Entwurf wird deshalb bei jeder Eingabe gesichert und nach dem
   // Neuladen wiederhergestellt.
@@ -1029,56 +1143,60 @@
   var IMG_MAX_PX = 640;
   var IMG_QUALITY = 0.82;
 
-  /* ---------- Bild-Speicher (IndexedDB, weil localStorage zu klein ist) ---------- */
+  /* ---------- Bild-Speicher (Firestore, damit alle Handys dieselben Fotos sehen) ----------
+     Ein Foto liegt als Base64 in images/<code>. Ein 640px-JPEG ist klein genug
+     für das 1-MB-Limit eines Firestore-Dokuments. Ein Blob-Cache im Speicher
+     spart wiederholte Downloads. */
 
-  var db = null;
+  var imgCache = {};
 
-  function openDb() {
-    return new Promise(function (resolve) {
-      if (db) { resolve(db); return; }
-      if (!window.indexedDB) { resolve(null); return; }
-      var req = indexedDB.open("kasse-bilder", 1);
-      req.onupgradeneeded = function () {
-        req.result.createObjectStore("images");
-      };
-      req.onsuccess = function () { db = req.result; resolve(db); };
-      req.onerror = function () { resolve(null); };
+  function imgKey(code) {
+    return String(code == null ? "" : code).replace(/[^A-Za-z0-9_-]/g, "_") || "_";
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = function () { reject(new Error("Bild konnte nicht gelesen werden")); };
+      r.readAsDataURL(blob);
     });
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    var parts = dataUrl.split(",");
+    var mime = (parts[0].match(/:(.*?);/) || [])[1] || "image/jpeg";
+    var bin = atob(parts[1]);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
   }
 
   function putImage(code, blob) {
-    return openDb().then(function (d) {
-      if (!d) return false;
-      return new Promise(function (resolve) {
-        var tx = d.transaction("images", "readwrite");
-        tx.objectStore("images").put(blob, code);
-        tx.oncomplete = function () { resolve(true); };
-        tx.onerror = function () { resolve(false); };
+    var key = imgKey(code);
+    return blobToDataUrl(blob).then(function (dataUrl) {
+      return setDoc(doc(fdb, "images", key), { data: dataUrl }).then(function () {
+        imgCache[key] = blob;
+        return true;
       });
-    });
+    }).catch(function () { return false; });
   }
 
   function getImage(code) {
-    return openDb().then(function (d) {
-      if (!d) return null;
-      return new Promise(function (resolve) {
-        var req = d.transaction("images", "readonly").objectStore("images").get(code);
-        req.onsuccess = function () { resolve(req.result || null); };
-        req.onerror = function () { resolve(null); };
-      });
-    });
+    var key = imgKey(code);
+    if (imgCache[key]) return Promise.resolve(imgCache[key]);
+    return getDoc(doc(fdb, "images", key)).then(function (snap) {
+      if (!snap.exists()) return null;
+      var blob = dataUrlToBlob(snap.data().data);
+      imgCache[key] = blob;
+      return blob;
+    }).catch(function () { return null; });
   }
 
   function deleteImage(code) {
-    return openDb().then(function (d) {
-      if (!d) return;
-      return new Promise(function (resolve) {
-        var tx = d.transaction("images", "readwrite");
-        tx.objectStore("images").delete(code);
-        tx.oncomplete = resolve;
-        tx.onerror = resolve;
-      });
-    });
+    var key = imgKey(code);
+    delete imgCache[key];
+    return deleteDoc(doc(fdb, "images", key)).catch(function () {});
   }
 
   // Handyfotos sind 3–8 MB — das würde den Speicher sprengen und den
@@ -1185,11 +1303,11 @@
     return new Blob(chunks.concat(central, [new Uint8Array(end.buffer)]), { type: "application/zip" });
   }
 
-  /* ---------- State ---------- */
+  /* ---------- State (Spiegel der zentralen Firestore-Daten) ---------- */
 
   var state = {
-    articles: SEED_ARTICLES.slice(),
-    depts: SEED_DEPTS.slice(),
+    articles: [],
+    depts: [],
     listFilter: "new",
     // Der Import der Kasse löscht je Rubrik alles und legt es neu an
     // (Delta-A DCO, Technische Anleitung 2.3, Abschnitt 9.6).
@@ -1198,27 +1316,108 @@
   };
 
   var draft = null;
-  var editIndex = -1;
+  var editId = null;
 
-  function save() {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({
-        articles: state.articles,
-        depts: state.depts
-      }));
-    } catch (e) {
-      toast("Speichern fehlgeschlagen — Speicher voll?");
+  /* ---------- Zentrale Speicherung ---------- */
+
+  // Nur die Felder, die in Firestore gehören (ohne die lokale _id).
+  function toDoc(a) {
+    return {
+      DepartmentId: a.DepartmentId,
+      hasBarcode: !!a.hasBarcode,
+      code: String(a.code == null ? "" : a.code),
+      text: a.text || "",
+      taxId: a.taxId,
+      buy: a.buy || "0,00",
+      sell: a.sell || "",
+      unitId: a.unitId,
+      deposit: !!a.deposit,
+      depositId: a.depositId || "",
+      tare: a.tare || "0.0",
+      hasImage: !!a.hasImage,
+      isNew: a.isNew === true,
+      seq: typeof a.seq === "number" ? a.seq : Date.now()
+    };
+  }
+
+  function fromSnap(docSnap) {
+    var o = docSnap.data();
+    o._id = docSnap.id;
+    return o;
+  }
+
+  var dataStarted = false;
+  var unsubArticles = null;
+  var unsubDepts = null;
+  var gotArticles = false;
+  var gotDepts = false;
+  var seedChecked = false;
+
+  function startData() {
+    unsubDepts = onSnapshot(collection(fdb, "departments"), function (snap) {
+      var arr = [];
+      snap.forEach(function (d) { arr.push(fromSnap(d)); });
+      arr.sort(function (a, b) { return (a.Id || 0) - (b.Id || 0); });
+      state.depts = arr;
+      gotDepts = true;
+      renderAll();
+      if (draft) buildDeptChips();
+      maybeSeed();
+    }, dataError);
+
+    unsubArticles = onSnapshot(collection(fdb, "articles"), function (snap) {
+      var arr = [];
+      snap.forEach(function (d) { arr.push(fromSnap(d)); });
+      arr.sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
+      state.articles = arr;
+      gotArticles = true;
+      renderAll();
+      maybeSeed();
+    }, dataError);
+  }
+
+  function stopData() {
+    if (unsubArticles) { unsubArticles(); unsubArticles = null; }
+    if (unsubDepts) { unsubDepts(); unsubDepts = null; }
+    dataStarted = false;
+    gotArticles = gotDepts = seedChecked = false;
+    state.articles = [];
+    state.depts = [];
+    renderAll();
+  }
+
+  function dataError(err) {
+    if (err && err.code === "permission-denied") {
+      toast("Keine Berechtigung — sind die Firestore-Regeln gesetzt?");
     }
   }
 
-  function load() {
-    try {
-      var raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      if (data && Array.isArray(data.articles)) state.articles = data.articles;
-      if (data && Array.isArray(data.depts) && data.depts.length) state.depts = data.depts;
-    } catch (e) { /* defekter Speicher: Seed behalten */ }
+  // Beim allerersten Start (leere Datenbank) den aktuellen Kassenbestand anlegen.
+  // Eine Transaktion auf meta/seeded verhindert doppeltes Anlegen, wenn zwei
+  // Handys gleichzeitig zum ersten Mal starten.
+  function maybeSeed() {
+    if (seedChecked || !gotArticles || !gotDepts) return;
+    seedChecked = true;
+    if (state.articles.length || state.depts.length) return;
+
+    runTransaction(fdb, function (tx) {
+      var metaRef = doc(fdb, "meta", "seeded");
+      return tx.get(metaRef).then(function (m) {
+        if (m.exists()) return;
+        SEED_DEPTS.forEach(function (d, i) {
+          tx.set(doc(collection(fdb, "departments")),
+            { Id: d.Id, GroupId: d.GroupId, name: d.name, ToGo: d.ToGo, seq: i + 1 });
+        });
+        SEED_ARTICLES.forEach(function (a, i) {
+          var o = toDoc(a); o.seq = i + 1; tx.set(doc(collection(fdb, "articles")), o);
+        });
+        tx.set(metaRef, { at: serverTimestamp() });
+      });
+    }).catch(function () { /* jemand anderes hat bereits geseedet */ });
+  }
+
+  function fbWriteError() {
+    toast("Speichern in der Cloud fehlgeschlagen");
   }
 
   /* ---------- Helpers ---------- */
@@ -1261,9 +1460,9 @@
     toast._t = setTimeout(function () { t.classList.remove("is-shown"); }, 2200);
   }
 
-  function findByCode(code, skipIndex) {
+  function findByCode(code, skipId) {
     for (var i = 0; i < state.articles.length; i++) {
-      if (i === skipIndex) continue;
+      if (skipId && state.articles[i]._id === skipId) continue;
       if (state.articles[i].code === code) return state.articles[i];
     }
     return null;
@@ -1386,14 +1585,15 @@
     }
 
     var added = 0;
+    var base = Date.now();
     for (var i = 1; i < lines.length; i++) {
       var c = lines[i].split(";");
       if (c.length < 11) continue;
 
       var code = (c[2] || "").trim();
-      if (findByCode(code, -1)) continue;
+      if (findByCode(code, null)) continue;
 
-      state.articles.push({
+      addDoc(collection(fdb, "articles"), toDoc({
         DepartmentId: parseInt(c[0], 10) || 1,
         hasBarcode: (c[1] || "").trim().toUpperCase() === "X",
         code: code,
@@ -1406,13 +1606,12 @@
         tare: (c[12] || "0.0").trim(),
         deposit: (c[13] || "").trim().toUpperCase() === "X",
         hasImage: false,
-        isNew: false
-      });
+        isNew: false,
+        seq: base + i
+      })).catch(fbWriteError);
       added++;
     }
 
-    save();
-    renderAll();
     toast(added + " vorhandene Artikel eingelesen");
   }
 
@@ -1437,7 +1636,6 @@
 
     wrap.textContent = "";
     rows.forEach(function (a) {
-      var idx = state.articles.indexOf(a);
       var d = deptById(a.DepartmentId);
       var btn = document.createElement("button");
       btn.className = "item";
@@ -1470,7 +1668,7 @@
       btn.appendChild(name);
       btn.appendChild(price);
       btn.appendChild(meta);
-      btn.addEventListener("click", function () { openSheet(idx); });
+      btn.addEventListener("click", function () { openSheet(a); });
       wrap.appendChild(btn);
     });
   }
@@ -1610,7 +1808,7 @@
 
   function updateDupWarn() {
     var w = $("dupWarn");
-    var hit = draft.code ? findByCode(draft.code, editIndex) : null;
+    var hit = draft.code ? findByCode(draft.code, editId) : null;
     if (hit) {
       w.textContent = "Achtung: „" + (hit.text || "?") + "“ hat schon diesen Code.";
       w.classList.add("is-shown");
@@ -1682,7 +1880,7 @@
     if (!draft) return;
     snapshotDraft();
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft: draft, editIndex: editIndex }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft: draft, editId: editId }));
     } catch (e) { /* Speicher voll: Wiederherstellung entfällt, App läuft weiter */ }
   }
 
@@ -1690,14 +1888,20 @@
     try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
   }
 
-  function openSheet(index) {
-    editIndex = typeof index === "number" ? index : -1;
-    if (editIndex >= 0) draft = JSON.parse(JSON.stringify(state.articles[editIndex]));
+  // article = das anzuzeigende Objekt (Bearbeiten) oder null (Neuanlage, draft
+  // ist dann vom Aufrufer schon gesetzt).
+  function openSheet(article) {
+    if (article) {
+      editId = article._id;
+      draft = JSON.parse(JSON.stringify(article));
+    } else {
+      editId = null;
+    }
     showSheetFromDraft();
   }
 
   function showSheetFromDraft() {
-    var editing = editIndex >= 0;
+    var editing = !!editId;
     $("sheetTitle").textContent = editing ? "Artikel bearbeiten" : "Neuer Artikel";
     $("deleteBtn").hidden = !editing;
     $("saveBtn").textContent = editing ? "Übernehmen" : "Speichern & weiter";
@@ -1726,7 +1930,7 @@
   function closeSheet() {
     $("sheet").classList.remove("is-open");
     draft = null;
-    editIndex = -1;
+    editId = null;
     clearDraftStore();
   }
 
@@ -1747,17 +1951,15 @@
     var b = parseNum(draft.buy);
     draft.buy = isNaN(b) ? "0,00" : de(b);
 
-    if (editIndex >= 0) {
-      state.articles[editIndex] = draft;
-      save();
-      renderAll();
+    if (editId) {
+      updateDoc(doc(fdb, "articles", editId), toDoc(draft)).catch(fbWriteError);
       closeSheet();
       toast("Geändert");
     } else {
       var name = draft.text;
-      state.articles.push(draft);
-      save();
-      renderAll();
+      var payload = toDoc(draft);
+      payload.seq = Date.now();
+      addDoc(collection(fdb, "articles"), payload).catch(fbWriteError);
       closeSheet();
       toast("„" + name + "“ gespeichert");
       if ($("view-scan").classList.contains("is-active")) startCam();
@@ -1856,15 +2058,15 @@
 
     if (navigator.vibrate) navigator.vibrate(40);
 
-    var existing = findByCode(code, -1);
+    var existing = findByCode(code, null);
     if (existing) {
-      openSheet(state.articles.indexOf(existing));
+      openSheet(existing);
       toast("Artikel ist schon angelegt");
       return;
     }
 
     draft = blankDraft(code, true);
-    openSheet(-1);
+    openSheet(null);
   }
 
   /* ---------- Views ---------- */
@@ -1893,7 +2095,7 @@
   // Die nächste freie Nummer steht schon im Formular — kein Nachfragen nötig.
   $("manualBtn").addEventListener("click", function () {
     draft = blankDraft("", false);
-    openSheet(-1);
+    openSheet(null);
   });
 
   $("editCode").addEventListener("click", function () {
@@ -1951,12 +2153,10 @@
   $("saveBtn").addEventListener("click", commit);
 
   $("deleteBtn").addEventListener("click", function () {
-    if (editIndex < 0) return;
+    if (!editId) return;
     if (!window.confirm("Diesen Artikel aus der Liste entfernen?")) return;
-    var gone = state.articles.splice(editIndex, 1)[0];
-    if (gone && gone.hasImage) deleteImage(gone.code);
-    save();
-    renderAll();
+    deleteDoc(doc(fdb, "articles", editId)).catch(fbWriteError);
+    if (draft && draft.hasImage) deleteImage(draft.code);
     closeSheet();
     toast("Entfernt");
   });
@@ -2031,17 +2231,16 @@
       if (d.GroupId > maxId) maxId = d.GroupId;
     });
 
-    state.depts.push({
+    addDoc(collection(fdb, "departments"), {
       Id: maxId + 1,
       GroupId: maxId + 1,
       name: name,
-      ToGo: $("newDeptToGo").getAttribute("aria-pressed") === "true" ? 1 : 0
-    });
+      ToGo: $("newDeptToGo").getAttribute("aria-pressed") === "true" ? 1 : 0,
+      seq: Date.now()
+    }).catch(fbWriteError);
 
     $("newDeptName").value = "";
     $("newDeptToGo").setAttribute("aria-pressed", "false");
-    save();
-    renderAll();
     toast("„" + name + "“ angelegt");
   });
 
@@ -2170,10 +2369,10 @@
     var n = newArticles().length;
     if (!n) { toast("Es gibt keine neuen Artikel"); return; }
     if (!window.confirm("Alle " + n + " neuen Artikel samt Fotos löschen? Das lässt sich nicht rückgängig machen.")) return;
-    newArticles().forEach(function (a) { if (a.hasImage) deleteImage(a.code); });
-    state.articles = state.articles.filter(function (a) { return !a.isNew; });
-    save();
-    renderAll();
+    newArticles().forEach(function (a) {
+      deleteDoc(doc(fdb, "articles", a._id)).catch(fbWriteError);
+      if (a.hasImage) deleteImage(a.code);
+    });
     toast("Neue Artikel gelöscht");
   });
 
@@ -2185,23 +2384,76 @@
     if (document.hidden) stopCam();
   });
 
-  /* ---------- Start ---------- */
+  /* ---------- Login (Firebase Authentication) ---------- */
 
-  load();
-  renderAll();
+  function authMsg(text) {
+    var el = $("loginMsg");
+    el.textContent = text || "";
+    el.hidden = !text;
+  }
 
-  // Formular wiederherstellen, falls Android die Seite beendet hat
-  // (z. B. während die Kamera-App für ein Artikelfoto offen war).
-  try {
-    var savedForm = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
-    if (savedForm && savedForm.draft) {
-      draft = savedForm.draft;
-      editIndex = (typeof savedForm.editIndex === "number" && savedForm.editIndex >= 0 && savedForm.editIndex < state.articles.length)
-        ? savedForm.editIndex : -1;
-      showSheetFromDraft();
-      toast("Deine Eingaben wurden wiederhergestellt");
+  function loginErrorText(err) {
+    var code = err && err.code ? err.code : "";
+    if (code === "auth/invalid-email") return "Die E-Mail-Adresse ist ungültig.";
+    if (code === "auth/user-disabled") return "Dieser Zugang ist gesperrt.";
+    if (code === "auth/network-request-failed") return "Keine Internetverbindung.";
+    if (code === "auth/too-many-requests") return "Zu viele Versuche. Bitte kurz warten.";
+    // wrong-password, user-not-found, invalid-credential
+    return "E-Mail oder Passwort ist falsch.";
+  }
+
+  function doLogin() {
+    var email = $("loginEmail").value.trim();
+    var pass = $("loginPass").value;
+    if (!email || !pass) { authMsg("Bitte E-Mail und Passwort eingeben."); return; }
+    $("loginBtn").disabled = true;
+    authMsg("");
+    signInWithEmailAndPassword(auth, email, pass).then(function () {
+      $("loginPass").value = "";
+    }).catch(function (err) {
+      authMsg(loginErrorText(err));
+    }).then(function () {
+      $("loginBtn").disabled = false;
+    });
+  }
+
+  $("loginBtn").addEventListener("click", doLogin);
+  $("loginPass").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") doLogin();
+  });
+  $("logoutBtn").addEventListener("click", function () {
+    if (window.confirm("Abmelden?")) signOut(auth);
+  });
+
+  function restoreDraft() {
+    try {
+      var savedForm = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+      if (savedForm && savedForm.draft) {
+        draft = savedForm.draft;
+        editId = savedForm.editId || null;
+        showSheetFromDraft();
+        toast("Deine Eingaben wurden wiederhergestellt");
+      }
+    } catch (e) { clearDraftStore(); }
+  }
+
+  var draftRestored = false;
+
+  setPersistence(auth, browserLocalPersistence).catch(function () {});
+  onAuthStateChanged(auth, function (user) {
+    if (user) {
+      $("authOverlay").hidden = true;
+      $("userEmail").textContent = user.email || "";
+      if (!dataStarted) { dataStarted = true; startData(); }
+      // Formular nach Android-Neustart wiederherstellen (nur einmal).
+      if (!draftRestored) { draftRestored = true; restoreDraft(); }
+    } else {
+      $("authOverlay").hidden = false;
+      if (dataStarted) stopData();
     }
-  } catch (e) { clearDraftStore(); }
+  });
+
+  renderAll();
 
   if (!camSupported()) {
     showCamNotice("Dieses Handy kann den Barcode nicht über den Browser lesen. Nutze <strong>Chrome auf Android</strong>, oder tippe den Code über „Ohne Barcode anlegen“ ein.");
