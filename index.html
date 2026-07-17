@@ -1077,8 +1077,12 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 // Lokaler Cache: die App läuft auch offline weiter und synchronisiert später.
+// Long-Polling automatisch erkennen: manche Werbe-/Inhalts-Blocker sperren die
+// schnelle Streaming-Verbindung (ERR_BLOCKED_BY_CLIENT). Long-Polling kommt
+// meist trotzdem durch.
 const fdb = initializeFirestore(fbApp, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  experimentalAutoDetectLongPolling: true
 });
 
 (function () {
