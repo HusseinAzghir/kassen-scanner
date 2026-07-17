@@ -1010,6 +1010,10 @@
   ];
 
   var STORE_KEY = "kasse.artikel.v1";
+  // Android wirft die Seite aus dem Speicher, während die Kamera-App offen ist.
+  // Der Formular-Entwurf wird deshalb bei jeder Eingabe gesichert und nach dem
+  // Neuladen wiederhergestellt.
+  var DRAFT_KEY = "kasse.entwurf.v1";
 
   /* ============================================================
      Bilder
@@ -1498,7 +1502,8 @@
     var fotos = state.articles.filter(function (a) { return a.hasImage; }).length;
     $("scopeHint").innerHTML = "Enthält alle <strong>" + state.articles.length +
       "</strong> Artikel, deine Warengruppen und <strong>" + fotos +
-      "</strong> Fotos — fertig für den Stick.";
+      "</strong> Fotos — fertig für den Stick." +
+      ($("shareBtn").hidden ? "" : " Klappt das Herunterladen nicht, nutze <strong>ZIP teilen</strong> und wähle deine Dateien-App.");
 
     var warn = $("scopeWarn");
     if (state.exportScope === "new") {
@@ -1530,6 +1535,7 @@
       b.addEventListener("click", function () {
         draft.DepartmentId = d.Id;
         buildDeptChips();
+        persistDraft();
       });
       wrap.appendChild(b);
     });
@@ -1552,6 +1558,7 @@
         sel.hidden = true;
         buildTaxChips();
         updateNetHint();
+        persistDraft();
       });
       wrap.appendChild(b);
     });
@@ -1576,6 +1583,7 @@
         draft.taxId = parseInt(sel.value, 10);
         buildTaxChips();
         updateNetHint();
+        persistDraft();
       });
     }
     sel.value = String(draft.taxId);
@@ -1661,19 +1669,38 @@
     });
   }
 
+  function snapshotDraft() {
+    if (!draft) return;
+    draft.text = $("fName").value;
+    draft.sell = $("fPrice").value;
+    draft.buy = $("fBuy").value;
+    draft.tare = $("fTare").value;
+    draft.depositId = $("fDepositId").value;
+  }
+
+  function persistDraft() {
+    if (!draft) return;
+    snapshotDraft();
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft: draft, editIndex: editIndex }));
+    } catch (e) { /* Speicher voll: Wiederherstellung entfällt, App läuft weiter */ }
+  }
+
+  function clearDraftStore() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+  }
+
   function openSheet(index) {
     editIndex = typeof index === "number" ? index : -1;
+    if (editIndex >= 0) draft = JSON.parse(JSON.stringify(state.articles[editIndex]));
+    showSheetFromDraft();
+  }
 
-    if (editIndex >= 0) {
-      draft = JSON.parse(JSON.stringify(state.articles[editIndex]));
-      $("sheetTitle").textContent = "Artikel bearbeiten";
-      $("deleteBtn").hidden = false;
-      $("saveBtn").textContent = "Übernehmen";
-    } else {
-      $("sheetTitle").textContent = "Neuer Artikel";
-      $("deleteBtn").hidden = true;
-      $("saveBtn").textContent = "Speichern & weiter";
-    }
+  function showSheetFromDraft() {
+    var editing = editIndex >= 0;
+    $("sheetTitle").textContent = editing ? "Artikel bearbeiten" : "Neuer Artikel";
+    $("deleteBtn").hidden = !editing;
+    $("saveBtn").textContent = editing ? "Übernehmen" : "Speichern & weiter";
 
     $("codeValue").textContent = draft.code || "—";
     $("fName").value = draft.text;
@@ -1692,6 +1719,7 @@
 
     $("sheet").classList.add("is-open");
     stopCam();
+    persistDraft();
     setTimeout(function () { $("fName").focus(); }, 60);
   }
 
@@ -1699,6 +1727,7 @@
     $("sheet").classList.remove("is-open");
     draft = null;
     editIndex = -1;
+    clearDraftStore();
   }
 
   function commit() {
@@ -1886,6 +1915,7 @@
       $("codeValue").textContent = next || "—";
       updateDupWarn();
       renderThumb();
+      persistDraft();
     });
   });
 
@@ -1902,6 +1932,7 @@
       if (!okSaved) { toast("Foto konnte nicht gespeichert werden"); return; }
       draft.hasImage = true;
       renderThumb();
+      persistDraft();
       toast("Foto übernommen");
     }).catch(function (err) {
       toast(err.message || "Foto konnte nicht verarbeitet werden");
@@ -1935,7 +1966,15 @@
   $("fDeposit").addEventListener("click", function () {
     draft.deposit = !draft.deposit;
     this.setAttribute("aria-pressed", String(draft.deposit));
+    persistDraft();
   });
+
+  // Jede Eingabe sofort sichern — Android kann die Seite jederzeit beenden,
+  // besonders während die Kamera-App für ein Foto offen ist.
+  ["fName", "fPrice", "fBuy", "fTare", "fDepositId"].forEach(function (id) {
+    $(id).addEventListener("input", persistDraft);
+  });
+  $("photoInput").addEventListener("click", persistDraft);
 
   $("unitChips").addEventListener("click", function (e) {
     var b = e.target.closest(".chip");
@@ -1944,6 +1983,7 @@
     // Waagenartikel tragen eine PLU, keinen Barcode — so steht es in der Original-Datei.
     draft.hasBarcode = draft.unitId !== 3;
     buildUnitChips();
+    persistDraft();
   });
 
   document.querySelectorAll("[data-filter]").forEach(function (b) {
@@ -2070,6 +2110,7 @@
 
     var btn = $("shareBtn");
     btn.hidden = false;
+    renderScopeHint();
     btn.addEventListener("click", function () {
       buildZip().then(function (blob) {
         return navigator.share({
@@ -2113,6 +2154,19 @@
 
   load();
   renderAll();
+
+  // Formular wiederherstellen, falls Android die Seite beendet hat
+  // (z. B. während die Kamera-App für ein Artikelfoto offen war).
+  try {
+    var savedForm = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    if (savedForm && savedForm.draft) {
+      draft = savedForm.draft;
+      editIndex = (typeof savedForm.editIndex === "number" && savedForm.editIndex >= 0 && savedForm.editIndex < state.articles.length)
+        ? savedForm.editIndex : -1;
+      showSheetFromDraft();
+      toast("Deine Eingaben wurden wiederhergestellt");
+    }
+  } catch (e) { clearDraftStore(); }
 
   if (!camSupported()) {
     showCamNotice("Dieses Handy kann den Barcode nicht über den Browser lesen. Nutze <strong>Chrome auf Android</strong>, oder tippe den Code über „Ohne Barcode anlegen“ ein.");
