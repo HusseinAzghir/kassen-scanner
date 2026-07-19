@@ -1289,6 +1289,19 @@
       <span>Ist sichtbar</span>
       <button class="switch" id="gVisible" aria-pressed="true" aria-label="Sichtbar"></button>
     </div>
+    <div class="field">
+      <label>Bild</label>
+      <div class="photo-row">
+        <div class="thumb" id="gThumb" data-empty="true"></div>
+        <div class="photo-actions">
+          <input type="file" id="gPhotoInput" accept="image/*" capture="environment" hidden>
+          <label class="btn btn-outline" for="gPhotoInput">Foto aufnehmen</label>
+          <input type="file" id="gGalleryInput" accept="image/*" hidden>
+          <label class="btn btn-outline" for="gGalleryInput">Aus Galerie wählen</label>
+          <button class="btn btn-danger" id="gPhotoDel" hidden>Bild entfernen</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="sheet-foot">
     <button class="btn btn-danger" id="gDeleteBtn" hidden>Löschen</button>
@@ -1322,6 +1335,19 @@
     <div class="toggle-row">
       <span>Ist sichtbar</span>
       <button class="switch" id="dVisible" aria-pressed="true" aria-label="Sichtbar"></button>
+    </div>
+    <div class="field">
+      <label>Bild</label>
+      <div class="photo-row">
+        <div class="thumb" id="dThumb" data-empty="true"></div>
+        <div class="photo-actions">
+          <input type="file" id="dPhotoInput" accept="image/*" capture="environment" hidden>
+          <label class="btn btn-outline" for="dPhotoInput">Foto aufnehmen</label>
+          <input type="file" id="dGalleryInput" accept="image/*" hidden>
+          <label class="btn btn-outline" for="dGalleryInput">Aus Galerie wählen</label>
+          <button class="btn btn-danger" id="dPhotoDel" hidden>Bild entfernen</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="sheet-foot">
@@ -2010,11 +2036,25 @@ const fdb = initializeFirestore(fbApp, {
     return clean(code).replace(/[^A-Za-z0-9_-]/g, "_") + ".jpg";
   }
 
+  // article_type_id unterscheidet die Bildarten. 0 = Artikel ist belegt; die
+  // Werte für Gruppe/Warengruppe sind geraten, weil die Images.csv im Backup
+  // leer war — nach dem Bilder-Test an der Kasse ggf. hier korrigieren.
+  var TYPE_GROUP = "1";
+  var TYPE_DEPT = "2";
+
   function buildImagesCsv(rows) {
     var lines = ["article_no;image_uri;article_type_id"];
     rows.forEach(function (a) {
       if (!a.hasImage) return;
       lines.push([clean(a.code), imageName(a.code), IMAGE_TYPE_ID].join(";"));
+    });
+    state.groups.forEach(function (g) {
+      if (!g.hasImage) return;
+      lines.push([g.Id, groupImgKey(g.Id) + ".jpg", TYPE_GROUP].join(";"));
+    });
+    state.depts.forEach(function (d) {
+      if (!d.hasImage) return;
+      lines.push([d.Id, deptImgKey(d.Id) + ".jpg", TYPE_DEPT].join(";"));
     });
     return lines.join("\n") + "\n";
   }
@@ -2389,7 +2429,9 @@ const fdb = initializeFirestore(fbApp, {
   }
 
   function renderScopeHint() {
-    var fotos = state.articles.filter(function (a) { return a.hasImage; }).length;
+    var fotos = state.articles.filter(function (a) { return a.hasImage; }).length +
+      state.groups.filter(function (g) { return g.hasImage; }).length +
+      state.depts.filter(function (d) { return d.hasImage; }).length;
     $("scopeHint").innerHTML = "Enthält alle <strong>" + state.articles.length +
       "</strong> Artikel, deine Warengruppen und <strong>" + fotos +
       "</strong> Fotos — fertig für den Stick." +
@@ -3035,6 +3077,65 @@ const fdb = initializeFirestore(fbApp, {
   function swOn(id) { return $(id).getAttribute("aria-pressed") === "true"; }
   bindSwitch("gVisible"); bindSwitch("dToGo"); bindSwitch("dVisible");
 
+  /* ---------- Bild-Auswahl für Gruppe/Warengruppe ----------
+     Das Bild wird erst beim Speichern endgültig abgelegt, weil eine neu
+     angelegte Gruppe ihre Nummer erst in dem Moment bekommt. */
+  function makeImagePicker(thumbId, camId, galId, delId) {
+    var pending = null, has = false, removed = false, url = null;
+
+    function paint(blob) {
+      var el = $(thumbId);
+      if (url) { URL.revokeObjectURL(url); url = null; }
+      if (!blob) {
+        el.style.backgroundImage = "";
+        el.setAttribute("data-empty", "true");
+        $(delId).hidden = true;
+        return;
+      }
+      url = URL.createObjectURL(blob);
+      el.style.backgroundImage = 'url("' + url + '")';
+      el.setAttribute("data-empty", "false");
+      $(delId).hidden = false;
+    }
+
+    function pick(e) {
+      var f = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!f) return;
+      shrink(f).then(function (blob) {
+        pending = blob; has = true; removed = false;
+        paint(blob);
+        toast("Bild übernommen");
+      }).catch(function (err) { toast(err.message || "Bild konnte nicht verarbeitet werden"); });
+    }
+
+    $(camId).addEventListener("change", pick);
+    $(galId).addEventListener("change", pick);
+    $(delId).addEventListener("click", function () {
+      pending = null; has = false; removed = true;
+      paint(null);
+    });
+
+    return {
+      load: function (key, hasImage) {
+        pending = null; removed = false; has = !!hasImage;
+        paint(null);
+        if (key && hasImage) getImage(key).then(function (b) { if (b) paint(b); });
+      },
+      commit: function (key) {
+        if (pending) return putImage(key, pending).then(function () { return true; });
+        if (removed) return deleteImage(key).then(function () { return false; });
+        return Promise.resolve(has);
+      }
+    };
+  }
+
+  var gPicker = makeImagePicker("gThumb", "gPhotoInput", "gGalleryInput", "gPhotoDel");
+  var dPicker = makeImagePicker("dThumb", "dPhotoInput", "dGalleryInput", "dPhotoDel");
+
+  function groupImgKey(id) { return "group_" + id; }
+  function deptImgKey(id) { return "wgr_" + id; }
+
   /* ---------- GRUPPE (Übergruppe) ---------- */
   var gEditId = null;
 
@@ -3044,6 +3145,7 @@ const fdb = initializeFirestore(fbApp, {
     $("gDeleteBtn").hidden = !g;
     $("gName").value = g ? g.name : "";
     sw("gVisible", g ? g.visible !== false : true);
+    gPicker.load(g ? groupImgKey(g.Id) : null, g && g.hasImage);
     $("groupSheet").classList.add("is-open");
   }
 
@@ -3052,13 +3154,21 @@ const fdb = initializeFirestore(fbApp, {
   $("gSaveBtn").addEventListener("click", function () {
     var name = $("gName").value.trim();
     if (!name) { toast("Bitte einen Namen eingeben"); return; }
-    if (gEditId) {
-      updateDoc(doc(fdb, "groups", gEditId), { name: name, visible: swOn("gVisible") }).catch(fbWriteError);
-    } else {
-      addDoc(collection(fdb, "groups"), { Id: nextId(state.groups), name: name, visible: swOn("gVisible"), seq: Date.now() }).catch(fbWriteError);
-    }
+
+    var existing = gEditId ? state.groups.filter(function (x) { return x._id === gEditId; })[0] : null;
+    var id = existing ? existing.Id : nextId(state.groups);
+
+    gPicker.commit(groupImgKey(id)).then(function (hasImg) {
+      var payload = { name: name, visible: swOn("gVisible"), hasImage: !!hasImg };
+      if (gEditId) return updateDoc(doc(fdb, "groups", gEditId), payload);
+      payload.Id = id;
+      payload.seq = Date.now();
+      return addDoc(collection(fdb, "groups"), payload);
+    }).then(function () {
+      toast("Gruppe gespeichert");
+    }).catch(fbWriteError);
+
     $("groupSheet").classList.remove("is-open");
-    toast("Gruppe gespeichert");
   });
 
   $("gDeleteBtn").addEventListener("click", function () {
@@ -3067,6 +3177,7 @@ const fdb = initializeFirestore(fbApp, {
     var used = g ? state.depts.filter(function (d) { return d.GroupId === g.Id; }).length : 0;
     if (used) { toast("Erst die " + used + " Warengruppen dieser Gruppe umhängen oder löschen"); return; }
     if (!window.confirm("Diese Gruppe löschen?")) return;
+    if (g && g.hasImage) deleteImage(groupImgKey(g.Id));
     deleteDoc(doc(fdb, "groups", gEditId)).catch(fbWriteError);
     $("groupSheet").classList.remove("is-open");
     toast("Gruppe gelöscht");
@@ -3115,6 +3226,7 @@ const fdb = initializeFirestore(fbApp, {
     renderDeptTax();
     sw("dToGo", d ? !!d.ToGo : false);
     sw("dVisible", d ? d.visible !== false : true);
+    dPicker.load(d ? deptImgKey(d.Id) : null, d && d.hasImage);
     $("deptSheet").classList.add("is-open");
   }
 
@@ -3124,19 +3236,24 @@ const fdb = initializeFirestore(fbApp, {
     var name = $("dName").value.trim();
     if (!name) { toast("Bitte einen Namen eingeben"); return; }
     var groupId = parseInt($("dGroup").value, 10);
-    var payload = {
-      GroupId: groupId, name: name, ToGo: swOn("dToGo") ? 1 : 0,
-      primaryTaxId: dDraftTax, visible: swOn("dVisible")
-    };
-    if (dEditId) {
-      updateDoc(doc(fdb, "departments", dEditId), payload).catch(fbWriteError);
-    } else {
-      payload.Id = nextId(state.depts);
+
+    var existing = dEditId ? state.depts.filter(function (x) { return x._id === dEditId; })[0] : null;
+    var id = existing ? existing.Id : nextId(state.depts);
+
+    dPicker.commit(deptImgKey(id)).then(function (hasImg) {
+      var payload = {
+        GroupId: groupId, name: name, ToGo: swOn("dToGo") ? 1 : 0,
+        primaryTaxId: dDraftTax, visible: swOn("dVisible"), hasImage: !!hasImg
+      };
+      if (dEditId) return updateDoc(doc(fdb, "departments", dEditId), payload);
+      payload.Id = id;
       payload.seq = Date.now();
-      addDoc(collection(fdb, "departments"), payload).catch(fbWriteError);
-    }
+      return addDoc(collection(fdb, "departments"), payload);
+    }).then(function () {
+      toast("Warengruppe gespeichert");
+    }).catch(fbWriteError);
+
     $("deptSheet").classList.remove("is-open");
-    toast("Warengruppe gespeichert");
   });
 
   $("dDeleteBtn").addEventListener("click", function () {
@@ -3145,6 +3262,7 @@ const fdb = initializeFirestore(fbApp, {
     var used = d ? state.articles.filter(function (a) { return a.DepartmentId === d.Id; }).length : 0;
     if (used) { toast("Erst die " + used + " Artikel dieser Warengruppe umhängen oder löschen"); return; }
     if (!window.confirm("Diese Warengruppe löschen?")) return;
+    if (d && d.hasImage) deleteImage(deptImgKey(d.Id));
     deleteDoc(doc(fdb, "departments", dEditId)).catch(fbWriteError);
     $("deptSheet").classList.remove("is-open");
     toast("Warengruppe gelöscht");
@@ -3310,12 +3428,23 @@ const fdb = initializeFirestore(fbApp, {
     // Der Bilderordner existiert im Kassen-Export immer, auch leer.
     entries.push({ name: IMAGE_DIR + "/", bytes: new Uint8Array(0) });
 
-    var withImg = rows.filter(function (a) { return a.hasImage; });
-    return Promise.all(withImg.map(function (a) {
-      return getImage(a.code).then(function (blob) {
+    // Bilder von Artikeln, Gruppen und Warengruppen einsammeln.
+    var wanted = [];
+    rows.forEach(function (a) {
+      if (a.hasImage) wanted.push({ key: a.code, file: imageName(a.code) });
+    });
+    state.groups.forEach(function (g) {
+      if (g.hasImage) wanted.push({ key: groupImgKey(g.Id), file: groupImgKey(g.Id) + ".jpg" });
+    });
+    state.depts.forEach(function (d) {
+      if (d.hasImage) wanted.push({ key: deptImgKey(d.Id), file: deptImgKey(d.Id) + ".jpg" });
+    });
+
+    return Promise.all(wanted.map(function (w) {
+      return getImage(w.key).then(function (blob) {
         if (!blob) return null;
         return blob.arrayBuffer().then(function (buf) {
-          return { name: IMAGE_DIR + "/" + imageName(a.code), bytes: new Uint8Array(buf) };
+          return { name: IMAGE_DIR + "/" + w.file, bytes: new Uint8Array(buf) };
         });
       });
     })).then(function (imgs) {
