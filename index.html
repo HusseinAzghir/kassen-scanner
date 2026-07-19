@@ -721,16 +721,29 @@
     .toast { transition: none; }
   }
 
+  /* Dubletten-Warnung: muss sofort ins Auge fallen */
   .dup {
-    background: var(--warn-bg);
-    color: var(--warn-ink);
+    background: var(--signal);
+    color: #fff;
     border-radius: var(--r-md);
-    padding: 10px 12px;
-    font-size: 0.8125rem;
+    padding: 12px 14px;
+    font-size: 0.9375rem;
+    font-weight: 600;
     display: none;
   }
 
   .dup.is-shown { display: block; }
+
+  .dup.is-flash { animation: dupflash .45s ease 2; }
+
+  @keyframes dupflash {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dup.is-flash { animation: none; }
+  }
 
   /* ---------- Foto ---------- */
 
@@ -1941,12 +1954,12 @@ const fdb = initializeFirestore(fbApp, {
     return gross / (1 + rate / 100);
   }
 
-  function toast(msg) {
+  function toast(msg, ms) {
     var t = $("toast");
     t.textContent = msg;
     t.classList.add("is-shown");
     clearTimeout(toast._t);
-    toast._t = setTimeout(function () { t.classList.remove("is-shown"); }, 2200);
+    toast._t = setTimeout(function () { t.classList.remove("is-shown"); }, ms || 2200);
   }
 
   function findByCode(code, skipId) {
@@ -2575,10 +2588,12 @@ const fdb = initializeFirestore(fbApp, {
     var w = $("dupWarn");
     var hit = draft.code ? findByCode(draft.code, editId) : null;
     if (hit) {
-      w.textContent = "Achtung: „" + (hit.text || "?") + "“ hat schon diesen Code.";
+      w.textContent = "Nummer " + draft.code + " ist schon vergeben an „" +
+        (hit.text || "?") + "“. Bitte eine andere Nummer wählen.";
       w.classList.add("is-shown");
     } else {
       w.classList.remove("is-shown");
+      w.classList.remove("is-flash");
     }
   }
 
@@ -2729,7 +2744,17 @@ const fdb = initializeFirestore(fbApp, {
     // Doppelte PLU/EAN blockieren — die Kasse braucht eindeutige Nummern.
     var dup = findByCode(draft.code, editId);
     if (dup) {
-      toast((draft.hasBarcode ? "EAN " : "PLU ") + draft.code + " hat schon „" + (dup.text || "?") + "“");
+      updateDupWarn();
+      // Das Banner steht oben im Formular — dorthin scrollen, sonst sieht man
+      // die Warnung nicht, weil der Speichern-Knopf ganz unten sitzt.
+      var w = $("dupWarn");
+      var body = document.querySelector("#sheet .sheet-body");
+      if (body) body.scrollTop = 0;
+      if (w.scrollIntoView) w.scrollIntoView({ block: "center" });
+      w.classList.remove("is-flash");
+      void w.offsetWidth;
+      w.classList.add("is-flash");
+      toast("Diese Nummer gibt es schon: „" + (dup.text || "?") + "“", 4500);
       return;
     }
 
