@@ -891,20 +891,78 @@
   .sub-head .icon-btn { padding: 4px 8px; margin-left: -8px; font-size: 1.6rem; }
   .sub-head h2 { margin: 0; font-size: 1.0625rem; font-weight: 650; }
 
-  .unit-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  /* Einheiten-Karte: untereinander, damit es auf dem Handy passt */
+  .unit-card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--r-md);
-    padding: 8px 10px;
+    border-radius: var(--r-lg);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: var(--shadow);
   }
 
-  .unit-name { flex: 1; min-width: 0; min-height: 42px; }
-  .unit-id { width: 64px; flex: none; text-align: center; min-height: 42px; }
-  .unit-row .chip { min-height: 42px; }
-  .unit-row .icon-btn { font-size: 1.1rem; color: var(--signal); }
+  .unit-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .unit-card-top input {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+  }
+
+  .unit-del {
+    flex: none;
+    background: none;
+    border: none;
+    color: var(--signal);
+    font-size: 1.25rem;
+    padding: 8px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+  }
+
+  .stepper-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .stepper-label { font-size: 0.875rem; color: var(--ink-2); }
+
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+  }
+
+  .stepper button {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line-strong);
+    background: var(--surface-alt);
+    color: var(--ink);
+    font-size: 1.375rem;
+    font-family: var(--font-ui);
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .stepper .val {
+    min-width: 52px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.125rem;
+    font-weight: 650;
+  }
 </style>
 
 <div class="auth-overlay" id="authOverlay">
@@ -999,7 +1057,8 @@
     <!-- ============ EINHEITEN ============ -->
     <section class="view" id="view-units" aria-label="Einheiten">
       <div class="sub-head"><button class="icon-btn" data-goto="stammdaten" aria-label="Zurück">‹</button><h2>Einheiten</h2></div>
-      <p class="notice">Die ID muss zur Kasse passen. <strong>Stk = 1</strong> und <strong>kg = 3</strong> sind gesichert. Bei ml, l, Paket, g sind die IDs geraten — ändere sie hier, sobald du die richtigen kennst.</p>
+      <p class="hint">Hier stehen deine sechs Einheiten. <strong>„Nummer in der Kasse"</strong> ist die Zahl, mit der die Kasse diese Einheit intern speichert — sie muss übereinstimmen, sonst ordnet die Kasse den Artikel falsch zu. <strong>„Wird gewogen"</strong> schaltest du bei kg und g ein: Dann wird ein Artikel mit dieser Einheit automatisch zum Gewichtsartikel für die Waage.</p>
+      <p class="notice"><strong>Stk = 1</strong> und <strong>kg = 3</strong> sind aus deinen Kassendaten gesichert. Bei <strong>ml, l, Paket, g</strong> habe ich die Nummern geraten — stell sie mit − / + richtig ein, sobald du sie kennst, und tippe auf „Einheiten speichern".</p>
       <div class="list" id="unitList"></div>
       <button class="btn btn-outline btn-block" id="addUnitBtn">+ Einheit hinzufügen</button>
       <button class="btn btn-primary btn-block" id="saveUnitsBtn">Einheiten speichern</button>
@@ -1125,6 +1184,8 @@
         <div class="photo-actions">
           <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
           <label class="btn btn-outline" for="photoInput" id="photoBtn">Foto aufnehmen</label>
+          <input type="file" id="galleryInput" accept="image/*" hidden>
+          <label class="btn btn-outline" for="galleryInput">Aus Galerie wählen</label>
           <button class="btn btn-danger" id="photoDel" hidden>Foto entfernen</button>
         </div>
       </div>
@@ -1180,7 +1241,7 @@
     </div>
     <div class="field" id="tareField" hidden>
       <label for="fTare">Tara-Wert (g)</label>
-      <input type="text" id="fTare" class="mono" inputmode="numeric" placeholder="0">
+      <input type="text" id="fTare" class="mono" inputmode="decimal" placeholder="0.0">
     </div>
 
     <div class="toggle-row">
@@ -2204,44 +2265,76 @@ const fdb = initializeFirestore(fbApp, {
     }
     wrap.textContent = "";
     state.units.forEach(function (u, idx) {
-      var row = document.createElement("div");
-      row.className = "unit-row";
+      var card = document.createElement("div");
+      card.className = "unit-card";
 
+      // Kopf: Name + Entfernen
+      var top = document.createElement("div");
+      top.className = "unit-card-top";
       var name = document.createElement("input");
       name.type = "text";
-      name.className = "unit-name";
       name.value = u.name;
+      name.setAttribute("aria-label", "Name der Einheit");
       name.addEventListener("input", function () { state.units[idx].name = name.value; });
-
-      var id = document.createElement("input");
-      id.type = "text";
-      id.className = "mono unit-id";
-      id.inputMode = "numeric";
-      id.value = u.unitId;
-      id.addEventListener("input", function () { state.units[idx].unitId = parseInt(id.value, 10) || 0; });
-
-      var w = document.createElement("button");
-      w.className = "chip";
-      w.type = "button";
-      w.textContent = "Gewicht";
-      w.setAttribute("aria-pressed", String(!!u.isWeight));
-      w.addEventListener("click", function () {
-        state.units[idx].isWeight = !state.units[idx].isWeight;
-        w.setAttribute("aria-pressed", String(!!state.units[idx].isWeight));
-      });
-
       var del = document.createElement("button");
-      del.className = "icon-btn";
+      del.className = "unit-del";
       del.type = "button";
       del.textContent = "✕";
       del.setAttribute("aria-label", "Einheit entfernen");
-      del.addEventListener("click", function () { state.units.splice(idx, 1); renderUnits(); });
+      del.addEventListener("click", function () {
+        if (!window.confirm("Einheit „" + u.name + "“ entfernen?")) return;
+        state.units.splice(idx, 1);
+        renderUnits();
+      });
+      top.appendChild(name);
+      top.appendChild(del);
 
-      row.appendChild(name);
-      row.appendChild(id);
-      row.appendChild(w);
-      row.appendChild(del);
-      wrap.appendChild(row);
+      // Kassen-ID mit − / +
+      var strow = document.createElement("div");
+      strow.className = "stepper-row";
+      var lab = document.createElement("span");
+      lab.className = "stepper-label";
+      lab.textContent = "Nummer in der Kasse";
+      var st = document.createElement("div");
+      st.className = "stepper";
+      var minus = document.createElement("button");
+      minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", "Nummer kleiner");
+      var val = document.createElement("span");
+      val.className = "val";
+      val.textContent = u.unitId;
+      var plus = document.createElement("button");
+      plus.type = "button"; plus.textContent = "+"; plus.setAttribute("aria-label", "Nummer größer");
+      minus.addEventListener("click", function () {
+        state.units[idx].unitId = Math.max(0, (state.units[idx].unitId || 0) - 1);
+        val.textContent = state.units[idx].unitId;
+      });
+      plus.addEventListener("click", function () {
+        state.units[idx].unitId = (state.units[idx].unitId || 0) + 1;
+        val.textContent = state.units[idx].unitId;
+      });
+      st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
+      strow.appendChild(lab); strow.appendChild(st);
+
+      // Waage-Schalter mit verständlicher Beschriftung
+      var wrow = document.createElement("div");
+      wrow.className = "toggle-row";
+      var wlab = document.createElement("span");
+      wlab.textContent = "Wird gewogen (Waage)";
+      var wsw = document.createElement("button");
+      wsw.className = "switch";
+      wsw.type = "button";
+      wsw.setAttribute("aria-label", "Wird gewogen");
+      wsw.setAttribute("aria-pressed", String(!!u.isWeight));
+      wsw.addEventListener("click", function () {
+        state.units[idx].isWeight = !state.units[idx].isWeight;
+        wsw.setAttribute("aria-pressed", String(!!state.units[idx].isWeight));
+      });
+      wrow.appendChild(wlab); wrow.appendChild(wsw);
+
+      card.appendChild(top);
+      card.appendChild(strow);
+      card.appendChild(wrow);
+      wrap.appendChild(card);
     });
     if ($("cntUnits")) $("cntUnits").textContent = state.units.length + " Stück";
   }
@@ -2465,7 +2558,7 @@ const fdb = initializeFirestore(fbApp, {
       sell: "",
       unitId: hasBarcode ? 1 : 3,
       isScale: !hasBarcode,
-      tare: "0",
+      tare: "0.0",
       isDeposit: false,
       depositId: "",
       isPriceLimitCheck: false,
@@ -2551,7 +2644,7 @@ const fdb = initializeFirestore(fbApp, {
     $("fName").value = draft.text;
     $("fPrice").value = draft.sell;
     $("fBuy").value = draft.buy || "0,00";
-    $("fTare").value = draft.tare || "0";
+    $("fTare").value = draft.tare || "0.0";
     $("fDepositId").value = draft.depositId || "";
     $("fLimitVal").value = draft.priceLimit || "";
     $("fSupplement").value = draft.supplementId != null ? draft.supplementId : "0";
@@ -2581,13 +2674,20 @@ const fdb = initializeFirestore(fbApp, {
     draft.text = $("fName").value.trim();
     draft.sell = $("fPrice").value.trim();
     draft.buy = $("fBuy").value.trim() || "0,00";
-    draft.tare = $("fTare").value.trim() || "0";
+    draft.tare = $("fTare").value.trim() || "0.0";
     draft.depositId = $("fDepositId").value.trim();
     draft.priceLimit = $("fLimitVal").value.trim() || "0.0";
     draft.supplementId = $("fSupplement").value.trim() || "0";
 
     if (!draft.text) { toast("Bitte einen Namen eingeben"); $("fName").focus(); return; }
     if (!draft.code) { toast("Bitte Barcode oder PLU eingeben"); return; }
+
+    // Doppelte PLU/EAN blockieren — die Kasse braucht eindeutige Nummern.
+    var dup = findByCode(draft.code, editId);
+    if (dup) {
+      toast((draft.hasBarcode ? "EAN " : "PLU ") + draft.code + " hat schon „" + (dup.text || "?") + "“");
+      return;
+    }
 
     var g = parseNum(draft.sell);
     if (isNaN(g) || g < 0) { toast("Bitte einen gültigen Preis eingeben"); $("fPrice").focus(); return; }
@@ -2823,7 +2923,8 @@ const fdb = initializeFirestore(fbApp, {
     });
   });
 
-  $("photoInput").addEventListener("change", function (e) {
+  // Bild übernehmen — von der Kamera oder aus der Galerie.
+  function handlePhotoPick(e) {
     var file = e.target.files && e.target.files[0];
     e.target.value = "";
     if (!file || !draft) return;
@@ -2837,11 +2938,14 @@ const fdb = initializeFirestore(fbApp, {
       draft.hasImage = true;
       renderThumb();
       persistDraft();
-      toast("Foto übernommen");
+      toast("Bild übernommen");
     }).catch(function (err) {
-      toast(err.message || "Foto konnte nicht verarbeitet werden");
+      toast(err.message || "Bild konnte nicht verarbeitet werden");
     });
-  });
+  }
+
+  $("photoInput").addEventListener("change", handlePhotoPick);
+  $("galleryInput").addEventListener("change", handlePhotoPick);
 
   $("photoDel").addEventListener("click", function () {
     if (!draft) return;
@@ -2897,6 +3001,7 @@ const fdb = initializeFirestore(fbApp, {
     $(id).addEventListener("input", persistDraft);
   });
   $("photoInput").addEventListener("click", persistDraft);
+  $("galleryInput").addEventListener("click", persistDraft);
 
   document.querySelectorAll("[data-filter]").forEach(function (b) {
     b.addEventListener("click", function () {
