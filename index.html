@@ -2253,13 +2253,14 @@ const fdb = initializeFirestore(fbApp, {
     if ($("cntDepts")) $("cntDepts").textContent = state.depts.length + " Stück";
   }
 
-  function renderUnits() {
+  // force = true bei eigenen Aktionen (Hinzufügen/Löschen) — dann immer neu zeichnen.
+  function renderUnits(force) {
     var wrap = $("unitList");
     if (!wrap) return;
-    // Nicht neu aufbauen, während die Einheiten-Seite offen ist (sonst gehen
-    // laufende Eingaben verloren, wenn ein Firestore-Update eintrifft).
+    // Updates aus der Cloud nicht mitten in eine laufende Eingabe zeichnen,
+    // sonst gehen Tastatureingaben verloren.
     var view = $("view-units");
-    if (view && view.classList.contains("is-active") && wrap.children.length) {
+    if (!force && view && view.classList.contains("is-active") && wrap.children.length) {
       if ($("cntUnits")) $("cntUnits").textContent = state.units.length + " Stück";
       return;
     }
@@ -2284,7 +2285,8 @@ const fdb = initializeFirestore(fbApp, {
       del.addEventListener("click", function () {
         if (!window.confirm("Einheit „" + u.name + "“ entfernen?")) return;
         state.units.splice(idx, 1);
-        renderUnits();
+        renderUnits(true);
+        saveUnits("Einheit entfernt");
       });
       top.appendChild(name);
       top.appendChild(del);
@@ -3149,16 +3151,31 @@ const fdb = initializeFirestore(fbApp, {
   });
 
   /* ---------- EINHEITEN ---------- */
+
+  // Namen/Nummern säubern und zentral sichern.
+  function saveUnits(msg) {
+    var list = state.units.map(function (u) {
+      return {
+        name: String(u.name == null ? "" : u.name).trim() || "Einheit",
+        unitId: parseInt(u.unitId, 10) || 0,
+        isWeight: !!u.isWeight
+      };
+    });
+    return setDoc(doc(fdb, "meta", "units"), { list: list }).then(function () {
+      toast(msg || "Einheiten gespeichert");
+    }).catch(fbWriteError);
+  }
+
   $("addUnitBtn").addEventListener("click", function () {
-    state.units.push({ name: "Neu", unitId: 0, isWeight: false });
-    renderUnits();
+    // Neue Einheit bekommt die nächste freie Nummer als Vorschlag.
+    var maxId = 0;
+    state.units.forEach(function (u) { if ((u.unitId || 0) > maxId) maxId = u.unitId; });
+    state.units.push({ name: "Neue Einheit", unitId: maxId + 1, isWeight: false });
+    renderUnits(true);
+    saveUnits("Einheit hinzugefügt");
   });
 
-  $("saveUnitsBtn").addEventListener("click", function () {
-    setDoc(doc(fdb, "meta", "units"), { list: state.units }).then(function () {
-      toast("Einheiten gespeichert");
-    }).catch(fbWriteError);
-  });
+  $("saveUnitsBtn").addEventListener("click", function () { saveUnits(); });
 
   /* ---------- BEDIENER ---------- */
   var sEditId = null;
