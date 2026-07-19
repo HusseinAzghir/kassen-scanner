@@ -83,6 +83,9 @@
 
   * { box-sizing: border-box; }
 
+  /* hidden-Attribut muss display:flex/inline-flex der Komponenten schlagen */
+  [hidden] { display: none !important; }
+
   body {
     margin: 0;
     background: var(--ground);
@@ -827,6 +830,81 @@
   }
 
   .auth-msg[hidden] { display: none; }
+
+  /* ---------- Formular-Abschnitte ---------- */
+
+  .form-section {
+    margin: 8px 0 0;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* ---------- Stammdaten-Kacheln ---------- */
+
+  .tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--ink);
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+
+  .tile svg {
+    width: 30px;
+    height: 30px;
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .tile-name { font-size: 0.9375rem; font-weight: 600; }
+  .tile-sub { font-size: 0.75rem; color: var(--ink-2); }
+
+  .sub-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .sub-head .icon-btn { padding: 4px 8px; margin-left: -8px; font-size: 1.6rem; }
+  .sub-head h2 { margin: 0; font-size: 1.0625rem; font-weight: 650; }
+
+  .unit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 8px 10px;
+  }
+
+  .unit-name { flex: 1; min-width: 0; min-height: 42px; }
+  .unit-id { width: 64px; flex: none; text-align: center; min-height: 42px; }
+  .unit-row .chip { min-height: 42px; }
+  .unit-row .icon-btn { font-size: 1.1rem; color: var(--signal); }
 </style>
 
 <div class="auth-overlay" id="authOverlay">
@@ -877,22 +955,69 @@
       <div class="list" id="articleList"></div>
     </section>
 
-    <!-- ============ WARENGRUPPEN ============ -->
-    <section class="view" id="view-groups" aria-label="Warengruppen">
-      <div class="card">
-        <h2 class="card-title">Neue Warengruppe</h2>
-        <div class="field">
-          <label for="newDeptName">Name</label>
-          <input type="text" id="newDeptName" placeholder="z. B. Süßwaren" autocomplete="off">
-        </div>
-        <div class="toggle-row">
-          <span>ToGo-Warengruppe</span>
-          <button class="switch" id="newDeptToGo" aria-pressed="false" aria-label="ToGo"></button>
-        </div>
-        <button class="btn btn-primary" id="addDeptBtn">Warengruppe anlegen</button>
+    <!-- ============ STAMMDATEN HUB ============ -->
+    <section class="view" id="view-stammdaten" aria-label="Stammdaten">
+      <div class="tiles">
+        <button class="tile" data-goto="glist">
+          <svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></svg>
+          <span class="tile-name">Gruppen</span><span class="tile-sub" id="cntGroups"></span>
+        </button>
+        <button class="tile" data-goto="dlist">
+          <svg viewBox="0 0 24 24"><path d="M3 7l9 4 9-4-9-4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+          <span class="tile-name">Warengruppen</span><span class="tile-sub" id="cntDepts"></span>
+        </button>
+        <button class="tile" data-goto="units">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16M8 4v16"/></svg>
+          <span class="tile-name">Einheiten</span><span class="tile-sub" id="cntUnits"></span>
+        </button>
+        <button class="tile" data-goto="staff">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
+          <span class="tile-name">Bediener</span><span class="tile-sub" id="cntStaff"></span>
+        </button>
+        <button class="tile" data-goto="company">
+          <svg viewBox="0 0 24 24"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3"/></svg>
+          <span class="tile-name">Firma</span><span class="tile-sub">Adresse</span>
+        </button>
       </div>
+      <p class="hint">Gruppe = Überkategorie (z. B. Lebensmittel). Warengruppe = Unterkategorie (z. B. Süßigkeiten), gehört zu einer Gruppe. Artikel gehören zu einer Warengruppe.</p>
+    </section>
+
+    <!-- ============ GRUPPEN ============ -->
+    <section class="view" id="view-glist" aria-label="Gruppen">
+      <div class="sub-head"><button class="icon-btn" data-goto="stammdaten" aria-label="Zurück">‹</button><h2>Gruppen (Überkategorien)</h2></div>
+      <button class="btn btn-primary btn-block" id="addGroupBtn">+ Neue Gruppe</button>
+      <div class="list" id="groupList"></div>
+    </section>
+
+    <!-- ============ WARENGRUPPEN ============ -->
+    <section class="view" id="view-dlist" aria-label="Warengruppen">
+      <div class="sub-head"><button class="icon-btn" data-goto="stammdaten" aria-label="Zurück">‹</button><h2>Warengruppen</h2></div>
+      <button class="btn btn-primary btn-block" id="addDeptBtn">+ Neue Warengruppe</button>
       <div class="list" id="deptList"></div>
-      <p class="hint">Jede Warengruppe wird beim Export in <strong>Department.csv</strong> und <strong>Group.csv</strong> geschrieben — die Kasse braucht sie in beiden.</p>
+    </section>
+
+    <!-- ============ EINHEITEN ============ -->
+    <section class="view" id="view-units" aria-label="Einheiten">
+      <div class="sub-head"><button class="icon-btn" data-goto="stammdaten" aria-label="Zurück">‹</button><h2>Einheiten</h2></div>
+      <p class="notice">Die ID muss zur Kasse passen. <strong>Stk = 1</strong> und <strong>kg = 3</strong> sind gesichert. Bei ml, l, Paket, g sind die IDs geraten — ändere sie hier, sobald du die richtigen kennst.</p>
+      <div class="list" id="unitList"></div>
+      <button class="btn btn-outline btn-block" id="addUnitBtn">+ Einheit hinzufügen</button>
+      <button class="btn btn-primary btn-block" id="saveUnitsBtn">Einheiten speichern</button>
+    </section>
+
+    <!-- ============ BEDIENER ============ -->
+    <section class="view" id="view-staff" aria-label="Bediener">
+      <div class="sub-head"><button class="icon-btn" data-goto="stammdaten" aria-label="Zurück">‹</button><h2>Bediener</h2></div>
+      <p class="notice">Passwörter werden verschlüsselt gespeichert (MD5). <strong>Teste einen neuen Zugang einmal an der Kasse</strong>, bevor du dich darauf verlässt. Lass Manager/Admin am besten unverändert.</p>
+      <button class="btn btn-primary btn-block" id="addStaffBtn">+ Neuer Bediener</button>
+      <div class="list" id="staffList"></div>
+    </section>
+
+    <!-- ============ FIRMA ============ -->
+    <section class="view" id="view-company" aria-label="Firma">
+      <div class="sub-head"><button class="icon-btn" data-goto="stammdaten" aria-label="Zurück">‹</button><h2>Firmendaten</h2></div>
+      <div class="card" id="companyForm"></div>
+      <button class="btn btn-primary btn-block" id="saveCompanyBtn">Firmendaten speichern</button>
     </section>
 
     <!-- ============ EXPORT ============ -->
@@ -917,10 +1042,10 @@
       </div>
 
       <div class="card">
-        <h2 class="card-title">Bestehende Datei laden</h2>
-        <p class="hint">Lade deine aktuelle <strong>Article.csv</strong> vom Kassen-Stick, damit die App weiß, was schon drin ist. Bereits vorhandene Barcodes werden dann als Dublette gewarnt.</p>
-        <label class="btn btn-outline btn-block" for="importFile">Article.csv einlesen</label>
-        <input type="file" id="importFile" accept=".csv,text/csv" hidden>
+        <h2 class="card-title">Kassenstand einlesen (einmalig)</h2>
+        <p class="hint">Damit die App deinen aktuellen Kassenstand kennt, lade vom Stick <strong>Group.csv</strong>, <strong>Department.csv</strong> und <strong>Article.csv</strong> (du kannst alle drei auf einmal auswählen). Vorhandenes bleibt, nur Fehlendes wird ergänzt.</p>
+        <label class="btn btn-outline btn-block" for="importFile">Kassen-Dateien einlesen</label>
+        <input type="file" id="importFile" accept=".csv,text/csv" multiple hidden>
       </div>
 
       <div class="card">
@@ -946,9 +1071,9 @@
       <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
       Artikel
     </button>
-    <button class="tab" role="tab" data-view="groups" aria-selected="false">
+    <button class="tab" role="tab" data-view="stammdaten" aria-selected="false">
       <svg viewBox="0 0 24 24"><path d="M3 5h7v7H3zM14 5h7v7h-7zM3 16h7v3H3zM14 16h7v3h-7z"/></svg>
-      Gruppen
+      Stammdaten
     </button>
     <button class="tab" role="tab" data-view="export" aria-selected="false">
       <svg viewBox="0 0 24 24"><path d="M12 3v12M12 15l-4-4M12 15l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
@@ -967,53 +1092,34 @@
   <div class="sheet-body">
     <div class="dup" id="dupWarn"></div>
 
-    <div class="barcode-display">
-      <div>
-        <div class="lbl" id="codeLabel">Barcode</div>
-        <div class="val" id="codeValue">—</div>
-      </div>
-      <button class="btn btn-outline" id="editCode" style="min-height:40px;padding:8px 12px;">Ändern</button>
-    </div>
-
-    <div class="field">
-      <label for="fName">Artikelname</label>
-      <input type="text" id="fName" autocomplete="off" placeholder="z. B. Snickers 50g">
-    </div>
-
-    <div class="field">
-      <label for="fPrice">Verkaufspreis (brutto)</label>
-      <div class="price-wrap">
-        <input type="text" id="fPrice" class="price" inputmode="numeric" placeholder="0,00">
-      </div>
-      <span class="hint" id="netHint">Nur Ziffern tippen: „150“ wird 1,50 €. Netto rechnet die App aus.</span>
-    </div>
+    <!-- ===== ALLGEMEIN ===== -->
+    <h3 class="form-section">Allgemein</h3>
 
     <div class="field">
       <label>Warengruppe</label>
       <div class="chips" id="deptChips" role="group" aria-label="Warengruppe"></div>
     </div>
 
-    <div class="field">
-      <label>Steuer</label>
-      <div class="chips" id="taxChips" role="group" aria-label="Steuer"></div>
-      <select id="taxSelect" hidden aria-label="Andere Steuer"></select>
-    </div>
-
-    <div class="field">
-      <label>Einheit</label>
-      <div class="chips" id="unitChips" role="group" aria-label="Einheit">
-        <button class="chip" data-unit="1" aria-pressed="true">Stück</button>
-        <button class="chip" data-unit="3" aria-pressed="false">Kilo (Waage)</button>
-      </div>
-    </div>
-
     <div class="toggle-row">
-      <span>Pfand</span>
-      <button class="switch" id="fDeposit" aria-pressed="false" aria-label="Pfand"></button>
+      <span>EAN-Code (Barcode)</span>
+      <button class="switch" id="fHasBarcode" aria-pressed="false" aria-label="EAN-Code"></button>
+    </div>
+
+    <div class="barcode-display">
+      <div>
+        <div class="lbl" id="codeLabel">PLU-Nr</div>
+        <div class="val" id="codeValue">—</div>
+      </div>
+      <button class="btn btn-outline" id="editCode" style="min-height:40px;padding:8px 12px;">Ändern</button>
     </div>
 
     <div class="field">
-      <label>Foto</label>
+      <label for="fName">Text (Artikelname)</label>
+      <input type="text" id="fName" autocomplete="off" placeholder="z. B. Snickers 50g">
+    </div>
+
+    <div class="field">
+      <label>Bild</label>
       <div class="photo-row">
         <div class="thumb" id="thumb" data-empty="true"></div>
         <div class="photo-actions">
@@ -1024,20 +1130,78 @@
       </div>
     </div>
 
+    <!-- ===== PREISE ===== -->
+    <h3 class="form-section">Preise</h3>
+
+    <div class="field">
+      <label>Steuer</label>
+      <div class="chips" id="taxChips" role="group" aria-label="Steuer"></div>
+      <select id="taxSelect" hidden aria-label="Andere Steuer"></select>
+    </div>
+
+    <div class="field">
+      <label for="fPrice">VKP-Brutto (Verkaufspreis)</label>
+      <div class="price-wrap">
+        <input type="text" id="fPrice" class="price" inputmode="numeric" placeholder="0,00">
+      </div>
+      <span class="hint" id="netHint">Nur Ziffern tippen: „150“ wird 1,50 €. Netto rechnet die App aus.</span>
+    </div>
+
+    <div class="toggle-row">
+      <span>Negativer Preis</span>
+      <button class="switch" id="fNegative" aria-pressed="false" aria-label="Negativer Preis"></button>
+    </div>
+
+    <div class="toggle-row">
+      <span>Varianten</span>
+      <button class="switch" id="fVariant" aria-pressed="false" aria-label="Varianten"></button>
+    </div>
+
+    <div class="toggle-row">
+      <span>Limit</span>
+      <button class="switch" id="fLimit" aria-pressed="false" aria-label="Limit"></button>
+    </div>
+    <div class="field" id="limitField" hidden>
+      <label for="fLimitVal">Limit-Wert</label>
+      <input type="text" id="fLimitVal" class="mono" inputmode="decimal" placeholder="0.0">
+    </div>
+
+    <!-- ===== EIGENSCHAFTEN ===== -->
+    <h3 class="form-section">Eigenschaften</h3>
+
+    <div class="field">
+      <label>Einheit</label>
+      <div class="chips" id="unitChips" role="group" aria-label="Einheit"></div>
+    </div>
+
+    <div class="toggle-row">
+      <span>Gewichtsartikel</span>
+      <button class="switch" id="fScale" aria-pressed="false" aria-label="Gewichtsartikel"></button>
+    </div>
+    <div class="field" id="tareField" hidden>
+      <label for="fTare">Tara-Wert (g)</label>
+      <input type="text" id="fTare" class="mono" inputmode="numeric" placeholder="0">
+    </div>
+
+    <div class="toggle-row">
+      <span>Pfandartikel</span>
+      <button class="switch" id="fDeposit" aria-pressed="false" aria-label="Pfandartikel"></button>
+    </div>
+    <div class="field" id="depositField" hidden>
+      <label for="fDepositId">Pfand-ID (deposit_id)</label>
+      <input type="text" id="fDepositId" class="mono" placeholder="leer lassen, wenn unbekannt" autocomplete="off">
+    </div>
+
     <details>
-      <summary>Weitere Felder</summary>
+      <summary>Selten gebraucht</summary>
       <div class="details-body">
         <div class="field">
-          <label for="fBuy">Einkaufspreis netto</label>
+          <label for="fSupplement">Beilage-ID (supplementId)</label>
+          <input type="text" id="fSupplement" class="mono" inputmode="numeric" placeholder="0" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="fBuy">Einkaufspreis netto (EK)</label>
           <input type="text" id="fBuy" class="mono" inputmode="numeric" placeholder="0,00">
-        </div>
-        <div class="field">
-          <label for="fTare">Tara (tare_value)</label>
-          <input type="text" id="fTare" class="mono" inputmode="decimal" placeholder="0.0">
-        </div>
-        <div class="field">
-          <label for="fDepositId">Pfand-ID (deposit_id)</label>
-          <input type="text" id="fDepositId" class="mono" placeholder="leer lassen, wenn unbekannt" autocomplete="off">
         </div>
       </div>
     </details>
@@ -1046,6 +1210,88 @@
   <div class="sheet-foot">
     <button class="btn btn-danger" id="deleteBtn" hidden>Löschen</button>
     <button class="btn btn-primary" id="saveBtn">Speichern &amp; weiter</button>
+  </div>
+</div>
+
+<!-- ===== GRUPPE anlegen/bearbeiten ===== -->
+<div class="sheet" id="groupSheet" role="dialog" aria-modal="true">
+  <div class="sheet-head">
+    <h2 id="groupSheetTitle">Neue Gruppe</h2>
+    <button class="icon-btn" data-close="groupSheet" aria-label="Schließen">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label for="gName">Name</label>
+      <input type="text" id="gName" autocomplete="off" placeholder="z. B. Lebensmittel">
+    </div>
+    <div class="toggle-row">
+      <span>Ist sichtbar</span>
+      <button class="switch" id="gVisible" aria-pressed="true" aria-label="Sichtbar"></button>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-danger" id="gDeleteBtn" hidden>Löschen</button>
+    <button class="btn btn-primary" id="gSaveBtn">Speichern</button>
+  </div>
+</div>
+
+<!-- ===== WARENGRUPPE anlegen/bearbeiten ===== -->
+<div class="sheet" id="deptSheet" role="dialog" aria-modal="true">
+  <div class="sheet-head">
+    <h2 id="deptSheetTitle">Neue Warengruppe</h2>
+    <button class="icon-btn" data-close="deptSheet" aria-label="Schließen">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label for="dGroup">Gruppe (Überkategorie)</label>
+      <select id="dGroup"></select>
+    </div>
+    <div class="field">
+      <label for="dName">Name</label>
+      <input type="text" id="dName" autocomplete="off" placeholder="z. B. Süßigkeiten">
+    </div>
+    <div class="field">
+      <label>Primäre Steuer (Vorgabe für Artikel)</label>
+      <div class="chips" id="dTaxChips" role="group" aria-label="Primäre Steuer"></div>
+    </div>
+    <div class="toggle-row">
+      <span>Steuer bei Außer Haus (ToGo)</span>
+      <button class="switch" id="dToGo" aria-pressed="false" aria-label="Außer Haus"></button>
+    </div>
+    <div class="toggle-row">
+      <span>Ist sichtbar</span>
+      <button class="switch" id="dVisible" aria-pressed="true" aria-label="Sichtbar"></button>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-danger" id="dDeleteBtn" hidden>Löschen</button>
+    <button class="btn btn-primary" id="dSaveBtn">Speichern</button>
+  </div>
+</div>
+
+<!-- ===== BEDIENER anlegen/bearbeiten ===== -->
+<div class="sheet" id="staffSheet" role="dialog" aria-modal="true">
+  <div class="sheet-head">
+    <h2 id="staffSheetTitle">Neuer Bediener</h2>
+    <button class="icon-btn" data-close="staffSheet" aria-label="Schließen">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label for="sName">Name</label>
+      <input type="text" id="sName" autocomplete="off" placeholder="z. B. Verkäufer 2">
+    </div>
+    <div class="field">
+      <label for="sType">Rolle</label>
+      <select id="sType"></select>
+    </div>
+    <div class="field">
+      <label for="sPass">Passwort (leer lassen = unverändert)</label>
+      <input type="text" id="sPass" autocomplete="off" placeholder="neues Passwort">
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-danger" id="sDeleteBtn" hidden>Löschen</button>
+    <button class="btn btn-primary" id="sSaveBtn">Speichern</button>
   </div>
 </div>
 
@@ -1111,21 +1357,59 @@ const fdb = initializeFirestore(fbApp, {
 
   var QUICK_TAX = [1, 2];
 
-  var SEED_DEPTS = [
-    { Id: 1, GroupId: 1, name: "Gemüse",   ToGo: 0 },
-    { Id: 2, GroupId: 2, name: "Obst",     ToGo: 1 },
-    { Id: 3, GroupId: 3, name: "Fleisch",  ToGo: 1 },
-    { Id: 4, GroupId: 4, name: "Getränke", ToGo: 1 }
+  // GRUPPE (Übergruppe) → Group.csv: CategoryId(immer 1);Id;GroupName
+  var SEED_GROUPS = [
+    { Id: 1, name: "Gemüse",   visible: true },
+    { Id: 2, name: "Obst",     visible: true },
+    { Id: 3, name: "Fleisch",  visible: true },
+    { Id: 4, name: "Getränke", visible: true }
   ];
+
+  // WARENGRUPPE (Untergruppe) → Department.csv: GroupId;Id;CategoryName;ToGo
+  // primaryTaxId ist nur eine Vorgabe für die Artikelmaske (nicht in Department.csv).
+  var SEED_DEPTS = [
+    { Id: 1, GroupId: 1, name: "Gemüse",   ToGo: 0, primaryTaxId: 2, visible: true },
+    { Id: 2, GroupId: 2, name: "Obst",     ToGo: 1, primaryTaxId: 2, visible: true },
+    { Id: 3, GroupId: 3, name: "Fleisch",  ToGo: 1, primaryTaxId: 2, visible: true },
+    { Id: 4, GroupId: 4, name: "Getränke", ToGo: 1, primaryTaxId: 1, visible: true }
+  ];
+
+  // Einheiten. Stk=1 und kg=3 sind aus Article.csv gesichert; die anderen IDs
+  // sind Platzhalter und in den Einstellungen jederzeit änderbar.
+  var SEED_UNITS = [
+    { name: "Stk",   unitId: 1, isWeight: false },
+    { name: "ml",    unitId: 2, isWeight: false },
+    { name: "l",     unitId: 4, isWeight: false },
+    { name: "Paket", unitId: 5, isWeight: false },
+    { name: "kg",    unitId: 3, isWeight: true },
+    { name: "g",     unitId: 6, isWeight: true }
+  ];
+
+  var SEED_COMPANY = {
+    Company: "Barakzai Markt", Country: "Deutschland", City: "Hamburg", State: "Hamburg",
+    Street: "Rothenburgsorter Marktpl.", No: "1", PostCode: "20539",
+    TaxNo: "46/082/02671", CurrencyCode: "1"
+  };
+
+  // Bediener aus Staff.csv (Passwörter sind MD5-Hashes). Bestehende bleiben
+  // unverändert; neue/geänderte Passwörter werden per MD5 gehasht.
+  var SEED_STAFF = [
+    { type: "3", name: "Manager",               password: "8e6d31dd12016093eaee9e331d230e1a", lastLogin: "2026-07-19 18:49:44.766", created: "2026-06-20 09:41:24.698", newPricePermit: "N" },
+    { type: "3", name: "EscadooSolutionsAdmin", password: "f2564f0df28d1f6bceab2f651dc9d3a7", lastLogin: "2026-06-25 16:27:52.651", created: "2026-06-23 22:00:46.075", newPricePermit: "null" },
+    { type: "6", name: "Verkäufer 1",           password: "08e330aaf5618c917e88420cb30a62c0", lastLogin: "2026-07-11 23:06:37.686", created: "2026-06-23 22:08:46.628", newPricePermit: "null" }
+  ];
+
+  // Bediener-Typen aus StaffType.csv (Zeilennummer = Typ-Wert in Staff.csv).
+  var STAFF_TYPES = ["Manager", "Bediener", "Trainer", "Verkäufer"];
 
   // Die 6 Artikel, die laut Article.csv schon in der Kasse sind.
   var SEED_ARTICLES = [
-    { DepartmentId: 1, hasBarcode: true,  code: "4000405004968", text: "Schinken",                 taxId: 1, buy: "0,00", sell: "2,99", unitId: 1, deposit: false, depositId: "", tare: "0.0", isNew: false },
-    { DepartmentId: 1, hasBarcode: false, code: "0",             text: "Tomaten",                  taxId: 2, buy: "0,00", sell: "1,49", unitId: 3, deposit: false, depositId: "", tare: "0.0", isNew: false },
-    { DepartmentId: 2, hasBarcode: true,  code: "3574661685960", text: "crem",                     taxId: 1, buy: "0,00", sell: "1,99", unitId: 1, deposit: false, depositId: "", tare: "0.0", isNew: false },
-    { DepartmentId: 1, hasBarcode: false, code: "1",             text: "Salat",                    taxId: 2, buy: "0,00", sell: "0,50", unitId: 3, deposit: false, depositId: "", tare: "0.0", isNew: false },
-    { DepartmentId: 4, hasBarcode: true,  code: "90448638",      text: "Red Bull Aprikose Erdbeer", taxId: 1, buy: "0,00", sell: "1,80", unitId: 1, deposit: true,  depositId: "", tare: "0.0", isNew: false },
-    { DepartmentId: 4, hasBarcode: true,  code: "8690793010052", text: "Erikli",                   taxId: 1, buy: "0,00", sell: "0,80", unitId: 1, deposit: false, depositId: "", tare: "0.0", isNew: false }
+    { DepartmentId: 1, hasBarcode: true,  code: "4000405004968", text: "Schinken",                 taxId: 1, buy: "0,00", sell: "2,99", unitId: 1, isDeposit: false, depositId: "", tare: "0.0", isScale: false, isNew: false },
+    { DepartmentId: 1, hasBarcode: false, code: "0",             text: "Tomaten",                  taxId: 2, buy: "0,00", sell: "1,49", unitId: 3, isDeposit: false, depositId: "", tare: "0.0", isScale: true,  isNew: false },
+    { DepartmentId: 2, hasBarcode: true,  code: "3574661685960", text: "crem",                     taxId: 1, buy: "0,00", sell: "1,99", unitId: 1, isDeposit: false, depositId: "", tare: "0.0", isScale: false, isNew: false },
+    { DepartmentId: 1, hasBarcode: false, code: "1",             text: "Salat",                    taxId: 2, buy: "0,00", sell: "0,50", unitId: 3, isDeposit: false, depositId: "", tare: "0.0", isScale: true,  isNew: false },
+    { DepartmentId: 4, hasBarcode: true,  code: "90448638",      text: "Red Bull Aprikose Erdbeer", taxId: 1, buy: "0,00", sell: "1,80", unitId: 1, isDeposit: true,  depositId: "", tare: "0.0", isScale: false, isNew: false },
+    { DepartmentId: 4, hasBarcode: true,  code: "8690793010052", text: "Erikli",                   taxId: 1, buy: "0,00", sell: "0,80", unitId: 1, isDeposit: false, depositId: "", tare: "0.0", isScale: false, isNew: false }
   ];
 
   // Android wirft die Seite aus dem Speicher, während die Kamera-App offen ist.
@@ -1310,12 +1594,15 @@ const fdb = initializeFirestore(fbApp, {
   /* ---------- State (Spiegel der zentralen Firestore-Daten) ---------- */
 
   var state = {
-    articles: [],
+    groups: [],
     depts: [],
+    articles: [],
+    units: [],
+    staff: [],
+    company: null,
     listFilter: "new",
     // Der Import der Kasse löscht je Rubrik alles und legt es neu an
     // (Delta-A DCO, Technische Anleitung 2.3, Abschnitt 9.6).
-    // Ein Export nur der neuen Artikel würde den Bestand löschen.
     exportScope: "all"
   };
 
@@ -1324,20 +1611,28 @@ const fdb = initializeFirestore(fbApp, {
 
   /* ---------- Zentrale Speicherung ---------- */
 
-  // Nur die Felder, die in Firestore gehören (ohne die lokale _id).
+  // Alle Artikelfelder, die in Firestore gehören (ohne die lokale _id).
   function toDoc(a) {
     return {
       DepartmentId: a.DepartmentId,
       hasBarcode: !!a.hasBarcode,
       code: String(a.code == null ? "" : a.code),
       text: a.text || "",
+      isNegativePrice: !!a.isNegativePrice,
       taxId: a.taxId,
       buy: a.buy || "0,00",
       sell: a.sell || "",
       unitId: a.unitId,
-      deposit: !!a.deposit,
-      depositId: a.depositId || "",
+      isScale: !!a.isScale,
       tare: a.tare || "0.0",
+      isDeposit: !!a.isDeposit,
+      depositId: a.depositId || "",
+      isPriceLimitCheck: !!a.isPriceLimitCheck,
+      priceLimit: a.priceLimit || "0.0",
+      isCoupon: !!a.isCoupon,
+      isVariant: !!a.isVariant,
+      isNfc: !!a.isNfc,
+      supplementId: a.supplementId != null && a.supplementId !== "" ? String(a.supplementId) : "0",
       hasImage: !!a.hasImage,
       isNew: a.isNew === true,
       seq: typeof a.seq === "number" ? a.seq : Date.now()
@@ -1351,42 +1646,56 @@ const fdb = initializeFirestore(fbApp, {
   }
 
   var dataStarted = false;
-  var unsubArticles = null;
-  var unsubDepts = null;
-  var gotArticles = false;
-  var gotDepts = false;
+  var unsubs = [];
+  var got = {};
   var seedChecked = false;
 
-  function startData() {
-    unsubDepts = onSnapshot(collection(fdb, "departments"), function (snap) {
+  function collSnap(name, sort, after) {
+    var u = onSnapshot(collection(fdb, name), function (snap) {
       var arr = [];
       snap.forEach(function (d) { arr.push(fromSnap(d)); });
-      arr.sort(function (a, b) { return (a.Id || 0) - (b.Id || 0); });
-      state.depts = arr;
-      gotDepts = true;
+      if (sort) arr.sort(sort);
+      after(arr);
+      got[name] = true;
       renderAll();
-      if (draft) buildDeptChips();
       maybeSeed();
     }, dataError);
+    unsubs.push(u);
+  }
 
-    unsubArticles = onSnapshot(collection(fdb, "articles"), function (snap) {
-      var arr = [];
-      snap.forEach(function (d) { arr.push(fromSnap(d)); });
-      arr.sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
-      state.articles = arr;
-      gotArticles = true;
+  function startData() {
+    collSnap("groups", function (a, b) { return (a.Id || 0) - (b.Id || 0); }, function (arr) { state.groups = arr; });
+    collSnap("departments", function (a, b) { return (a.Id || 0) - (b.Id || 0); }, function (arr) {
+      state.depts = arr;
+      if (draft) buildDeptChips();
+    });
+    collSnap("articles", function (a, b) { return (a.seq || 0) - (b.seq || 0); }, function (arr) { state.articles = arr; });
+    collSnap("staff", function (a, b) { return (a.seq || 0) - (b.seq || 0); }, function (arr) { state.staff = arr; });
+
+    unsubs.push(onSnapshot(doc(fdb, "meta", "units"), function (d) {
+      state.units = d.exists() && Array.isArray(d.data().list) ? d.data().list : [];
+      got.units = true;
+      if (draft) buildUnitChips();
       renderAll();
       maybeSeed();
-    }, dataError);
+    }, dataError));
+
+    unsubs.push(onSnapshot(doc(fdb, "meta", "company"), function (d) {
+      state.company = d.exists() ? d.data() : null;
+      got.company = true;
+      renderAll();
+      maybeSeed();
+    }, dataError));
   }
 
   function stopData() {
-    if (unsubArticles) { unsubArticles(); unsubArticles = null; }
-    if (unsubDepts) { unsubDepts(); unsubDepts = null; }
+    unsubs.forEach(function (u) { try { u(); } catch (e) {} });
+    unsubs = [];
     dataStarted = false;
-    gotArticles = gotDepts = seedChecked = false;
-    state.articles = [];
-    state.depts = [];
+    got = {};
+    seedChecked = false;
+    state.groups = state.depts = state.articles = state.staff = state.units = [];
+    state.company = null;
     renderAll();
   }
 
@@ -1396,19 +1705,27 @@ const fdb = initializeFirestore(fbApp, {
     }
   }
 
-  // Beim ersten Start den aktuellen Kassenbestand anlegen. Warengruppen und
-  // Artikel werden getrennt geprüft, damit ein Abbruch (z. B. durch einen
-  // Blocker) sich beim nächsten Laden von selbst heilt. Je ein Wächter-Dokument
-  // in meta/ verhindert doppeltes Anlegen bei gleichzeitigem Erststart.
+  // Beim ersten Start den aktuellen Kassenbestand anlegen. Jede Rubrik wird
+  // getrennt geprüft, damit ein Abbruch sich beim nächsten Laden selbst heilt.
   function maybeSeed() {
-    if (seedChecked || !gotArticles || !gotDepts) return;
+    if (seedChecked) return;
+    if (!got.groups || !got.departments || !got.articles || !got.staff || !got.units || !got.company) return;
     seedChecked = true;
+
+    if (state.groups.length === 0) seedInto("groups", "groupsSeeded", SEED_GROUPS.map(function (g, i) {
+      return { Id: g.Id, name: g.name, visible: g.visible !== false, seq: i + 1 };
+    }));
     if (state.depts.length === 0) seedInto("departments", "deptsSeeded", SEED_DEPTS.map(function (d, i) {
-      return { Id: d.Id, GroupId: d.GroupId, name: d.name, ToGo: d.ToGo, seq: i + 1 };
+      return { Id: d.Id, GroupId: d.GroupId, name: d.name, ToGo: d.ToGo, primaryTaxId: d.primaryTaxId || 1, visible: d.visible !== false, seq: i + 1 };
     }));
     if (state.articles.length === 0) seedInto("articles", "articlesSeeded", SEED_ARTICLES.map(function (a, i) {
       var o = toDoc(a); o.seq = i + 1; return o;
     }));
+    if (state.staff.length === 0) seedInto("staff", "staffSeeded", SEED_STAFF.map(function (s, i) {
+      return { type: s.type, name: s.name, password: s.password, lastLogin: s.lastLogin, created: s.created, newPricePermit: s.newPricePermit, seq: i + 1 };
+    }));
+    if (!state.units.length) seedDocIfMissing(doc(fdb, "meta", "units"), { list: SEED_UNITS });
+    if (!state.company) seedDocIfMissing(doc(fdb, "meta", "company"), SEED_COMPANY);
   }
 
   function seedInto(coll, guardName, rows) {
@@ -1422,8 +1739,87 @@ const fdb = initializeFirestore(fbApp, {
     }).catch(function () { /* jemand anderes hat bereits angelegt */ });
   }
 
+  function seedDocIfMissing(ref, data) {
+    runTransaction(fdb, function (tx) {
+      return tx.get(ref).then(function (m) { if (!m.exists()) tx.set(ref, data); });
+    }).catch(function () {});
+  }
+
   function fbWriteError() {
     toast("Speichern in der Cloud fehlgeschlagen");
+  }
+
+  /* ---------- Nachschlage-Helfer ---------- */
+
+  function groupById(id) {
+    for (var i = 0; i < state.groups.length; i++) if (state.groups[i].Id === id) return state.groups[i];
+    return null;
+  }
+
+  function unitById(id) {
+    for (var i = 0; i < state.units.length; i++) if (state.units[i].unitId === id) return state.units[i];
+    return null;
+  }
+
+  function unitLabel(id) {
+    var u = unitById(id);
+    return u ? u.name : "Stk";
+  }
+
+  function nextId(arr) {
+    var max = 0;
+    arr.forEach(function (x) { if ((x.Id || 0) > max) max = x.Id; });
+    return max + 1;
+  }
+
+  // MD5 (für Bediener-Passwörter, wie die Kasse sie speichert).
+  function md5(str) {
+    function rl(n, c) { return (n << c) | (n >>> (32 - c)); }
+    function au(x, y) {
+      var l = (x & 0xFFFF) + (y & 0xFFFF);
+      return (((x >> 16) + (y >> 16) + (l >> 16)) << 16) | (l & 0xFFFF);
+    }
+    function cmn(q, a, b, x, s, t) { return au(rl(au(au(a, q), au(x, t)), s), b); }
+    function ff(a, b, c, d, x, s, t) { return cmn((b & c) | (~b & d), a, b, x, s, t); }
+    function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & ~d), a, b, x, s, t); }
+    function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
+    function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | ~d), a, b, x, s, t); }
+    function tb(s) {
+      var bin = [], mask = (1 << 8) - 1;
+      for (var i = 0; i < s.length * 8; i += 8) bin[i >> 5] |= (s.charCodeAt(i / 8) & mask) << (i % 32);
+      return bin;
+    }
+    function bh(bin) {
+      var hex = "0123456789abcdef", out = "";
+      for (var i = 0; i < bin.length * 4; i++) out += hex.charAt((bin[i >> 2] >> ((i % 4) * 8 + 4)) & 0xF) + hex.charAt((bin[i >> 2] >> ((i % 4) * 8)) & 0xF);
+      return out;
+    }
+    function utf8(s) { return unescape(encodeURIComponent(s)); }
+    var x = tb(utf8(str)), len = utf8(str).length * 8;
+    x[len >> 5] |= 0x80 << (len % 32);
+    x[(((len + 64) >>> 9) << 4) + 14] = len;
+    var a = 1732584193, b = -271733879, c = -1732584194, d = 271733878;
+    for (var i = 0; i < x.length; i += 16) {
+      var oa = a, ob = b, oc = c, od = d;
+      a = ff(a, b, c, d, x[i], 7, -680876936); d = ff(d, a, b, c, x[i + 1], 12, -389564586); c = ff(c, d, a, b, x[i + 2], 17, 606105819); b = ff(b, c, d, a, x[i + 3], 22, -1044525330);
+      a = ff(a, b, c, d, x[i + 4], 7, -176418897); d = ff(d, a, b, c, x[i + 5], 12, 1200080426); c = ff(c, d, a, b, x[i + 6], 17, -1473231341); b = ff(b, c, d, a, x[i + 7], 22, -45705983);
+      a = ff(a, b, c, d, x[i + 8], 7, 1770035416); d = ff(d, a, b, c, x[i + 9], 12, -1958414417); c = ff(c, d, a, b, x[i + 10], 17, -42063); b = ff(b, c, d, a, x[i + 11], 22, -1990404162);
+      a = ff(a, b, c, d, x[i + 12], 7, 1804603682); d = ff(d, a, b, c, x[i + 13], 12, -40341101); c = ff(c, d, a, b, x[i + 14], 17, -1502002290); b = ff(b, c, d, a, x[i + 15], 22, 1236535329);
+      a = gg(a, b, c, d, x[i + 1], 5, -165796510); d = gg(d, a, b, c, x[i + 6], 9, -1069501632); c = gg(c, d, a, b, x[i + 11], 14, 643717713); b = gg(b, c, d, a, x[i], 20, -373897302);
+      a = gg(a, b, c, d, x[i + 5], 5, -701558691); d = gg(d, a, b, c, x[i + 10], 9, 38016083); c = gg(c, d, a, b, x[i + 15], 14, -660478335); b = gg(b, c, d, a, x[i + 4], 20, -405537848);
+      a = gg(a, b, c, d, x[i + 9], 5, 568446438); d = gg(d, a, b, c, x[i + 14], 9, -1019803690); c = gg(c, d, a, b, x[i + 3], 14, -187363961); b = gg(b, c, d, a, x[i + 8], 20, 1163531501);
+      a = gg(a, b, c, d, x[i + 13], 5, -1444681467); d = gg(d, a, b, c, x[i + 2], 9, -51403784); c = gg(c, d, a, b, x[i + 7], 14, 1735328473); b = gg(b, c, d, a, x[i + 12], 20, -1926607734);
+      a = hh(a, b, c, d, x[i + 5], 4, -378558); d = hh(d, a, b, c, x[i + 8], 11, -2022574463); c = hh(c, d, a, b, x[i + 11], 16, 1839030562); b = hh(b, c, d, a, x[i + 14], 23, -35309556);
+      a = hh(a, b, c, d, x[i + 1], 4, -1530992060); d = hh(d, a, b, c, x[i + 4], 11, 1272893353); c = hh(c, d, a, b, x[i + 7], 16, -155497632); b = hh(b, c, d, a, x[i + 10], 23, -1094730640);
+      a = hh(a, b, c, d, x[i + 13], 4, 681279174); d = hh(d, a, b, c, x[i], 11, -358537222); c = hh(c, d, a, b, x[i + 3], 16, -722521979); b = hh(b, c, d, a, x[i + 6], 23, 76029189);
+      a = hh(a, b, c, d, x[i + 9], 4, -640364487); d = hh(d, a, b, c, x[i + 12], 11, -421815835); c = hh(c, d, a, b, x[i + 15], 16, 530742520); b = hh(b, c, d, a, x[i + 2], 23, -995338651);
+      a = ii(a, b, c, d, x[i], 6, -198630844); d = ii(d, a, b, c, x[i + 7], 10, 1126891415); c = ii(c, d, a, b, x[i + 14], 15, -1416354905); b = ii(b, c, d, a, x[i + 5], 21, -57434055);
+      a = ii(a, b, c, d, x[i + 12], 6, 1700485571); d = ii(d, a, b, c, x[i + 3], 10, -1894986606); c = ii(c, d, a, b, x[i + 10], 15, -1051523); b = ii(b, c, d, a, x[i + 1], 21, -2054922799);
+      a = ii(a, b, c, d, x[i + 8], 6, 1873313359); d = ii(d, a, b, c, x[i + 15], 10, -30611744); c = ii(c, d, a, b, x[i + 6], 15, -1560198380); b = ii(b, c, d, a, x[i + 13], 21, 1309151649);
+      a = ii(a, b, c, d, x[i + 4], 6, -145523070); d = ii(d, a, b, c, x[i + 11], 10, -1120210379); c = ii(c, d, a, b, x[i + 2], 15, 718787259); b = ii(b, c, d, a, x[i + 9], 21, -343485551);
+      a = au(a, oa); b = au(b, ob); c = au(c, oc); d = au(d, od);
+    }
+    return bh([a, b, c, d]);
   }
 
   /* ---------- Helpers ---------- */
@@ -1500,7 +1896,6 @@ const fdb = initializeFirestore(fbApp, {
     var gross = parseNum(a.sell);
     if (isNaN(gross)) gross = 0;
     var net = de(netFromGross(gross, a.taxId));
-    var isScale = a.unitId === 3;
 
     return [
       a.DepartmentId,
@@ -1508,22 +1903,22 @@ const fdb = initializeFirestore(fbApp, {
       clean(a.code),
       clean(a.code),
       clean(a.text),
-      "N",                       // isNegativePrice
+      a.isNegativePrice ? "X" : "N",
       a.taxId,
       clean(a.buy) || "0,00",
       net,
       de(gross),
       a.unitId,
-      clean(a.depositId),        // deposit_id
-      clean(a.tare) || "0.0",    // Punkt, nicht Komma
-      a.deposit ? "X" : "N",
-      "N",                       // isPriceLimitCheck
-      "0.0",                     // priceLimit
-      "N",                       // isCouponArticle
-      "N",                       // isVariant
-      "N",                       // isNfc
-      "0",                       // supplementId
-      isScale ? "X" : "N"
+      clean(a.depositId),            // deposit_id
+      clean(a.tare) || "0.0",        // Punkt, nicht Komma
+      a.isDeposit ? "X" : "N",
+      a.isPriceLimitCheck ? "X" : "N",
+      clean(a.priceLimit) || "0.0",
+      a.isCoupon ? "X" : "N",
+      a.isVariant ? "X" : "N",
+      a.isNfc ? "X" : "N",
+      a.supplementId != null && a.supplementId !== "" ? clean(a.supplementId) : "0",
+      a.isScale ? "X" : "N"
     ].join(";");
   }
 
@@ -1533,18 +1928,19 @@ const fdb = initializeFirestore(fbApp, {
     return lines.join("\n") + "\n";
   }
 
-  function buildDeptCsv() {
-    var lines = ["GroupId;Id;CategoryName;ToGo;"];
-    state.depts.forEach(function (d) {
-      lines.push([d.GroupId, d.Id, clean(d.name), d.ToGo].join(";") + ";");
+  // Zwei Ebenen: Group.csv = Übergruppen, Department.csv = Warengruppen (mit GroupId).
+  function buildGroupCsv() {
+    var lines = ["CategoryId;Id;GroupName;"];
+    state.groups.forEach(function (g) {
+      lines.push(["1", g.Id, clean(g.name)].join(";") + ";");
     });
     return lines.join("\n") + "\n";
   }
 
-  function buildGroupCsv() {
-    var lines = ["CategoryId;Id;GroupName;"];
+  function buildDeptCsv() {
+    var lines = ["GroupId;Id;CategoryName;ToGo;"];
     state.depts.forEach(function (d) {
-      lines.push(["1", d.GroupId, clean(d.name)].join(";") + ";");
+      lines.push([d.GroupId, d.Id, clean(d.name), d.ToGo].join(";") + ";");
     });
     return lines.join("\n") + "\n";
   }
@@ -1560,6 +1956,26 @@ const fdb = initializeFirestore(fbApp, {
       lines.push([clean(a.code), imageName(a.code), IMAGE_TYPE_ID].join(";"));
     });
     return lines.join("\n") + "\n";
+  }
+
+  function buildStaffCsv() {
+    var lines = ["Type;Name;Password;LastLoginTime;CreatedTime;NewPricePermit;"];
+    state.staff.forEach(function (s) {
+      lines.push([
+        clean(s.type), clean(s.name), clean(s.password),
+        clean(s.lastLogin), clean(s.created),
+        s.newPricePermit == null ? "null" : clean(s.newPricePermit)
+      ].join(";"));
+    });
+    return lines.join("\n") + "\n";
+  }
+
+  function buildCompanyCsv() {
+    var c = state.company || SEED_COMPANY;
+    var head = "Company;Country;City;State;Street;No;PostCode;TaxNo;CurrencyCode;";
+    var row = [c.Company, c.Country, c.City, c.State, c.Street, c.No, c.PostCode, c.TaxNo, c.CurrencyCode]
+      .map(clean).join(";") + ";";
+    return head + "\n" + row + "\n";
   }
 
   function csvBlob(text) {
@@ -1580,6 +1996,51 @@ const fdb = initializeFirestore(fbApp, {
 
   /* ---------- CSV lesen ---------- */
 
+  // Erkennt anhand der Kopfzeile, ob Group.csv, Department.csv oder Article.csv
+  // geladen wurde, und übernimmt fehlende Einträge (vorhandene bleiben).
+  function importCsv(text) {
+    var head = text.replace(/^﻿/, "").split(/\r?\n/)[0].toLowerCase();
+    if (head.indexOf("groupname") !== -1) return importGroupsCsv(text);
+    if (head.indexOf("groupid") !== -1 && head.indexOf("categoryname") !== -1) return importDeptsCsv(text);
+    if (head.indexOf("departmentid") !== -1) return importArticleCsv(text);
+    toast("Unbekannte Datei — bitte Group.csv, Department.csv oder Article.csv");
+  }
+
+  function csvRows(text) {
+    return text.replace(/^﻿/, "").split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
+  }
+
+  function importGroupsCsv(text) {
+    var lines = csvRows(text);
+    var added = 0, base = Date.now();
+    for (var i = 1; i < lines.length; i++) {
+      var c = lines[i].split(";");
+      if (c.length < 3) continue;
+      var id = parseInt(c[1], 10);
+      if (!id || groupById(id)) continue;
+      addDoc(collection(fdb, "groups"), { Id: id, name: (c[2] || "").trim(), visible: true, seq: base + i }).catch(fbWriteError);
+      added++;
+    }
+    toast(added + " Gruppen eingelesen");
+  }
+
+  function importDeptsCsv(text) {
+    var lines = csvRows(text);
+    var added = 0, base = Date.now();
+    for (var i = 1; i < lines.length; i++) {
+      var c = lines[i].split(";");
+      if (c.length < 4) continue;
+      var id = parseInt(c[1], 10);
+      if (!id || deptById(id)) continue;
+      addDoc(collection(fdb, "departments"), {
+        GroupId: parseInt(c[0], 10) || 1, Id: id, name: (c[2] || "").trim(),
+        ToGo: parseInt(c[3], 10) || 0, primaryTaxId: 1, visible: true, seq: base + i
+      }).catch(fbWriteError);
+      added++;
+    }
+    toast(added + " Warengruppen eingelesen");
+  }
+
   function importArticleCsv(text) {
     var lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
     if (!lines.length) { toast("Datei ist leer"); return; }
@@ -1599,18 +2060,27 @@ const fdb = initializeFirestore(fbApp, {
       var code = (c[2] || "").trim();
       if (findByCode(code, null)) continue;
 
+      var X = function (v) { return (v || "").trim().toUpperCase() === "X"; };
       addDoc(collection(fdb, "articles"), toDoc({
         DepartmentId: parseInt(c[0], 10) || 1,
-        hasBarcode: (c[1] || "").trim().toUpperCase() === "X",
+        hasBarcode: X(c[1]),
         code: code,
         text: (c[4] || "").trim(),
+        isNegativePrice: X(c[5]),
         taxId: parseInt(c[6], 10) || 1,
         buy: (c[7] || "0,00").trim(),
         sell: (c[9] || "0,00").trim(),
         unitId: parseInt(c[10], 10) || 1,
         depositId: (c[11] || "").trim(),
         tare: (c[12] || "0.0").trim(),
-        deposit: (c[13] || "").trim().toUpperCase() === "X",
+        isDeposit: X(c[13]),
+        isPriceLimitCheck: X(c[14]),
+        priceLimit: (c[15] || "0.0").trim(),
+        isCoupon: X(c[16]),
+        isVariant: X(c[17]),
+        isNfc: X(c[18]),
+        supplementId: (c[19] || "0").trim(),
+        isScale: X(c[20]),
         hasImage: false,
         isNew: false,
         seq: base + i
@@ -1662,8 +2132,8 @@ const fdb = initializeFirestore(fbApp, {
       meta.textContent = (a.hasBarcode ? a.code : "PLU " + a.code) +
         " · " + (d ? d.name : "?") +
         " · " + taxById(a.taxId).label.replace(/\s/g, "") +
-        (a.unitId === 3 ? " · kg" : "") +
-        (a.deposit ? " · Pfand" : "") +
+        (a.unitId !== 1 ? " · " + unitLabel(a.unitId) : "") +
+        (a.isDeposit ? " · Pfand" : "") +
         (a.hasImage ? " · Foto" : "");
 
       var price = document.createElement("div");
@@ -1679,26 +2149,147 @@ const fdb = initializeFirestore(fbApp, {
     });
   }
 
+  function listRow(wrap, title, sub, onClick) {
+    var btn = document.createElement("button");
+    btn.className = "item";
+    btn.type = "button";
+    var n = document.createElement("div");
+    n.className = "item-name";
+    n.textContent = title;
+    var m = document.createElement("div");
+    m.className = "item-meta";
+    m.textContent = sub;
+    btn.appendChild(n);
+    btn.appendChild(m);
+    if (onClick) btn.addEventListener("click", onClick);
+    else btn.style.cursor = "default";
+    wrap.appendChild(btn);
+    return btn;
+  }
+
+  function renderGroups() {
+    var wrap = $("groupList");
+    if (!wrap) return;
+    wrap.textContent = "";
+    state.groups.forEach(function (g) {
+      var used = state.depts.filter(function (d) { return d.GroupId === g.Id; }).length;
+      listRow(wrap, g.name, "Id " + g.Id + " · " + used + " Warengruppen" + (g.visible === false ? " · unsichtbar" : ""),
+        function () { openGroupSheet(g); });
+    });
+    if ($("cntGroups")) $("cntGroups").textContent = state.groups.length + " Stück";
+  }
+
   function renderDepts() {
     var wrap = $("deptList");
+    if (!wrap) return;
     wrap.textContent = "";
     state.depts.forEach(function (d) {
       var used = state.articles.filter(function (a) { return a.DepartmentId === d.Id; }).length;
+      var g = groupById(d.GroupId);
+      listRow(wrap, d.name, "Id " + d.Id + " · Gruppe: " + (g ? g.name : "?") + " · " + used + " Artikel" + (d.ToGo ? " · ToGo" : ""),
+        function () { openDeptSheet(d); });
+    });
+    if ($("cntDepts")) $("cntDepts").textContent = state.depts.length + " Stück";
+  }
+
+  function renderUnits() {
+    var wrap = $("unitList");
+    if (!wrap) return;
+    // Nicht neu aufbauen, während die Einheiten-Seite offen ist (sonst gehen
+    // laufende Eingaben verloren, wenn ein Firestore-Update eintrifft).
+    var view = $("view-units");
+    if (view && view.classList.contains("is-active") && wrap.children.length) {
+      if ($("cntUnits")) $("cntUnits").textContent = state.units.length + " Stück";
+      return;
+    }
+    wrap.textContent = "";
+    state.units.forEach(function (u, idx) {
       var row = document.createElement("div");
-      row.className = "item";
-      row.style.cursor = "default";
+      row.className = "unit-row";
 
-      var name = document.createElement("div");
-      name.className = "item-name";
-      name.textContent = d.name;
+      var name = document.createElement("input");
+      name.type = "text";
+      name.className = "unit-name";
+      name.value = u.name;
+      name.addEventListener("input", function () { state.units[idx].name = name.value; });
 
-      var meta = document.createElement("div");
-      meta.className = "item-meta";
-      meta.textContent = "Id " + d.Id + " · " + used + " Artikel" + (d.ToGo ? " · ToGo" : "");
+      var id = document.createElement("input");
+      id.type = "text";
+      id.className = "mono unit-id";
+      id.inputMode = "numeric";
+      id.value = u.unitId;
+      id.addEventListener("input", function () { state.units[idx].unitId = parseInt(id.value, 10) || 0; });
+
+      var w = document.createElement("button");
+      w.className = "chip";
+      w.type = "button";
+      w.textContent = "Gewicht";
+      w.setAttribute("aria-pressed", String(!!u.isWeight));
+      w.addEventListener("click", function () {
+        state.units[idx].isWeight = !state.units[idx].isWeight;
+        w.setAttribute("aria-pressed", String(!!state.units[idx].isWeight));
+      });
+
+      var del = document.createElement("button");
+      del.className = "icon-btn";
+      del.type = "button";
+      del.textContent = "✕";
+      del.setAttribute("aria-label", "Einheit entfernen");
+      del.addEventListener("click", function () { state.units.splice(idx, 1); renderUnits(); });
 
       row.appendChild(name);
-      row.appendChild(meta);
+      row.appendChild(id);
+      row.appendChild(w);
+      row.appendChild(del);
       wrap.appendChild(row);
+    });
+    if ($("cntUnits")) $("cntUnits").textContent = state.units.length + " Stück";
+  }
+
+  function renderStaff() {
+    var wrap = $("staffList");
+    if (!wrap) return;
+    wrap.textContent = "";
+    state.staff.forEach(function (s) {
+      var rolle = STAFF_TYPES[parseInt(s.type, 10) - 1] || ("Typ " + s.type);
+      listRow(wrap, s.name, "Rolle: " + rolle, function () { openStaffSheet(s); });
+    });
+    if ($("cntStaff")) $("cntStaff").textContent = state.staff.length + " Stück";
+  }
+
+  var COMPANY_FIELDS = [
+    ["Company", "Firmenname"], ["Street", "Straße"], ["No", "Nr."], ["PostCode", "PLZ"],
+    ["City", "Stadt"], ["State", "Bundesland"], ["Country", "Land"],
+    ["TaxNo", "Steuernummer"], ["CurrencyCode", "Währungscode"]
+  ];
+
+  function renderCompany() {
+    var wrap = $("companyForm");
+    if (!wrap || wrap.dataset.built) { fillCompany(); return; }
+    wrap.textContent = "";
+    COMPANY_FIELDS.forEach(function (f) {
+      var field = document.createElement("div");
+      field.className = "field";
+      var lab = document.createElement("label");
+      lab.textContent = f[1];
+      lab.setAttribute("for", "fco_" + f[0]);
+      var inp = document.createElement("input");
+      inp.type = "text";
+      inp.id = "fco_" + f[0];
+      inp.autocomplete = "off";
+      field.appendChild(lab);
+      field.appendChild(inp);
+      wrap.appendChild(field);
+    });
+    wrap.dataset.built = "1";
+    fillCompany();
+  }
+
+  function fillCompany() {
+    var c = state.company || SEED_COMPANY;
+    COMPANY_FIELDS.forEach(function (f) {
+      var el = $("fco_" + f[0]);
+      if (el && document.activeElement !== el) el.value = c[f[0]] != null ? c[f[0]] : "";
     });
   }
 
@@ -1721,7 +2312,11 @@ const fdb = initializeFirestore(fbApp, {
   function renderAll() {
     renderCount();
     renderList();
+    renderGroups();
     renderDepts();
+    renderUnits();
+    renderStaff();
+    renderCompany();
     renderScopeHint();
   }
 
@@ -1794,12 +2389,39 @@ const fdb = initializeFirestore(fbApp, {
   }
 
   function buildUnitChips() {
-    var btns = $("unitChips").querySelectorAll(".chip");
-    Array.prototype.forEach.call(btns, function (b) {
-      var u = parseInt(b.getAttribute("data-unit"), 10);
-      b.setAttribute("aria-pressed", String(draft.unitId === u));
+    var wrap = $("unitChips");
+    wrap.textContent = "";
+    state.units.forEach(function (u) {
+      var b = document.createElement("button");
+      b.className = "chip";
+      b.type = "button";
+      b.textContent = u.name;
+      b.setAttribute("aria-pressed", String(draft.unitId === u.unitId));
+      b.addEventListener("click", function () {
+        draft.unitId = u.unitId;
+        // Gewichtseinheit (kg/g) schaltet Gewichtsartikel automatisch passend.
+        draft.isScale = !!u.isWeight;
+        buildUnitChips();
+        refreshForm();
+        persistDraft();
+      });
+      wrap.appendChild(b);
     });
-    $("codeLabel").textContent = draft.unitId === 3 ? "PLU-Nummer" : "Barcode";
+  }
+
+  // Schalter-Zustände und die davon abhängigen Felder aktualisieren.
+  function refreshForm() {
+    $("fHasBarcode").setAttribute("aria-pressed", String(!!draft.hasBarcode));
+    $("fNegative").setAttribute("aria-pressed", String(!!draft.isNegativePrice));
+    $("fVariant").setAttribute("aria-pressed", String(!!draft.isVariant));
+    $("fLimit").setAttribute("aria-pressed", String(!!draft.isPriceLimitCheck));
+    $("fScale").setAttribute("aria-pressed", String(!!draft.isScale));
+    $("fDeposit").setAttribute("aria-pressed", String(!!draft.isDeposit));
+
+    $("limitField").hidden = !draft.isPriceLimitCheck;
+    $("tareField").hidden = !draft.isScale;
+    $("depositField").hidden = !draft.isDeposit;
+    $("codeLabel").textContent = draft.hasBarcode ? "EAN-Code" : "PLU-Nr";
   }
 
   function updateNetHint() {
@@ -1829,18 +2451,29 @@ const fdb = initializeFirestore(fbApp, {
     var lastDept = state.depts.length ? state.depts[0].Id : 1;
     var prev = newArticles();
     if (prev.length) lastDept = prev[prev.length - 1].DepartmentId;
+    // Steuer-Vorgabe aus der Warengruppe übernehmen.
+    var d = deptById(lastDept);
+    var tax = d && d.primaryTaxId ? d.primaryTaxId : 1;
     return {
       DepartmentId: lastDept,
       hasBarcode: hasBarcode,
       code: code || (hasBarcode ? "" : nextPlu()),
       text: "",
-      taxId: 1,
+      isNegativePrice: false,
+      taxId: tax,
       buy: "0,00",
       sell: "",
       unitId: hasBarcode ? 1 : 3,
-      deposit: false,
+      isScale: !hasBarcode,
+      tare: "0",
+      isDeposit: false,
       depositId: "",
-      tare: "0.0",
+      isPriceLimitCheck: false,
+      priceLimit: "0.0",
+      isCoupon: false,
+      isVariant: false,
+      isNfc: false,
+      supplementId: "0",
       hasImage: false,
       isNew: true
     };
@@ -1880,6 +2513,8 @@ const fdb = initializeFirestore(fbApp, {
     draft.buy = $("fBuy").value;
     draft.tare = $("fTare").value;
     draft.depositId = $("fDepositId").value;
+    draft.priceLimit = $("fLimitVal").value;
+    draft.supplementId = $("fSupplement").value;
   }
 
   function persistDraft() {
@@ -1915,14 +2550,16 @@ const fdb = initializeFirestore(fbApp, {
     $("codeValue").textContent = draft.code || "—";
     $("fName").value = draft.text;
     $("fPrice").value = draft.sell;
-    $("fBuy").value = draft.buy;
-    $("fTare").value = draft.tare;
-    $("fDepositId").value = draft.depositId;
-    $("fDeposit").setAttribute("aria-pressed", String(draft.deposit));
+    $("fBuy").value = draft.buy || "0,00";
+    $("fTare").value = draft.tare || "0";
+    $("fDepositId").value = draft.depositId || "";
+    $("fLimitVal").value = draft.priceLimit || "";
+    $("fSupplement").value = draft.supplementId != null ? draft.supplementId : "0";
 
     buildDeptChips();
     buildTaxChips();
     buildUnitChips();
+    refreshForm();
     updateNetHint();
     updateDupWarn();
     renderThumb();
@@ -1944,8 +2581,10 @@ const fdb = initializeFirestore(fbApp, {
     draft.text = $("fName").value.trim();
     draft.sell = $("fPrice").value.trim();
     draft.buy = $("fBuy").value.trim() || "0,00";
-    draft.tare = $("fTare").value.trim() || "0.0";
+    draft.tare = $("fTare").value.trim() || "0";
     draft.depositId = $("fDepositId").value.trim();
+    draft.priceLimit = $("fLimitVal").value.trim() || "0.0";
+    draft.supplementId = $("fSupplement").value.trim() || "0";
 
     if (!draft.text) { toast("Bitte einen Namen eingeben"); $("fName").focus(); return; }
     if (!draft.code) { toast("Bitte Barcode oder PLU eingeben"); return; }
@@ -2120,14 +2759,18 @@ const fdb = initializeFirestore(fbApp, {
 
   /* ---------- Views ---------- */
 
+  // Unterseiten der Stammdaten behalten unten die "Stammdaten"-Markierung.
+  var SUBVIEWS = { glist: "stammdaten", dlist: "stammdaten", units: "stammdaten", staff: "stammdaten", company: "stammdaten" };
+
   function showView(name) {
     var views = document.querySelectorAll(".view");
     Array.prototype.forEach.call(views, function (v) {
       v.classList.toggle("is-active", v.id === "view-" + name);
     });
+    var tabName = SUBVIEWS[name] || name;
     var tabs = document.querySelectorAll(".tab");
     Array.prototype.forEach.call(tabs, function (t) {
-      t.setAttribute("aria-selected", String(t.getAttribute("data-view") === name));
+      t.setAttribute("aria-selected", String(t.getAttribute("data-view") === tabName));
     });
     if (name !== "scan") stopCam();
     window.scrollTo(0, 0);
@@ -2137,6 +2780,16 @@ const fdb = initializeFirestore(fbApp, {
 
   document.querySelectorAll(".tab").forEach(function (t) {
     t.addEventListener("click", function () { showView(t.getAttribute("data-view")); });
+  });
+
+  // Kacheln und Zurück-Knöpfe (data-goto) navigieren zwischen den Stammdaten-Seiten.
+  document.querySelectorAll("[data-goto]").forEach(function (el) {
+    el.addEventListener("click", function () { showView(el.getAttribute("data-goto")); });
+  });
+
+  // Schließen-Knöpfe der neuen Sheets.
+  document.querySelectorAll("[data-close]").forEach(function (el) {
+    el.addEventListener("click", function () { $(el.getAttribute("data-close")).classList.remove("is-open"); });
   });
 
   $("startCam").addEventListener("click", startCam);
@@ -2222,28 +2875,28 @@ const fdb = initializeFirestore(fbApp, {
   $("fPrice").addEventListener("input", function () { cashFormat(this); updateNetHint(); });
   $("fBuy").addEventListener("input", function () { cashFormat(this); });
 
-  $("fDeposit").addEventListener("click", function () {
-    draft.deposit = !draft.deposit;
-    this.setAttribute("aria-pressed", String(draft.deposit));
-    persistDraft();
-  });
+  // Alle Schalter der Artikelmaske.
+  function bindToggle(id, key, extra) {
+    $(id).addEventListener("click", function () {
+      draft[key] = !draft[key];
+      refreshForm();
+      if (extra) extra();
+      persistDraft();
+    });
+  }
+  bindToggle("fHasBarcode", "hasBarcode");
+  bindToggle("fNegative", "isNegativePrice");
+  bindToggle("fVariant", "isVariant");
+  bindToggle("fLimit", "isPriceLimitCheck");
+  bindToggle("fDeposit", "isDeposit");
+  bindToggle("fScale", "isScale");
 
   // Jede Eingabe sofort sichern — Android kann die Seite jederzeit beenden,
   // besonders während die Kamera-App für ein Foto offen ist.
-  ["fName", "fPrice", "fBuy", "fTare", "fDepositId"].forEach(function (id) {
+  ["fName", "fPrice", "fBuy", "fTare", "fDepositId", "fLimitVal", "fSupplement"].forEach(function (id) {
     $(id).addEventListener("input", persistDraft);
   });
   $("photoInput").addEventListener("click", persistDraft);
-
-  $("unitChips").addEventListener("click", function (e) {
-    var b = e.target.closest(".chip");
-    if (!b) return;
-    draft.unitId = parseInt(b.getAttribute("data-unit"), 10);
-    // Waagenartikel tragen eine PLU, keinen Barcode — so steht es in der Original-Datei.
-    draft.hasBarcode = draft.unitId !== 3;
-    buildUnitChips();
-    persistDraft();
-  });
 
   document.querySelectorAll("[data-filter]").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -2265,32 +2918,210 @@ const fdb = initializeFirestore(fbApp, {
     });
   });
 
-  $("newDeptToGo").addEventListener("click", function () {
-    var on = this.getAttribute("aria-pressed") === "true";
-    this.setAttribute("aria-pressed", String(!on));
+  /* ---------- Kleiner Schalter-Helfer für die Stammdaten-Sheets ---------- */
+  function bindSwitch(id) {
+    $(id).addEventListener("click", function () {
+      this.setAttribute("aria-pressed", String(this.getAttribute("aria-pressed") !== "true"));
+    });
+  }
+  function sw(id, on) { $(id).setAttribute("aria-pressed", String(!!on)); }
+  function swOn(id) { return $(id).getAttribute("aria-pressed") === "true"; }
+  bindSwitch("gVisible"); bindSwitch("dToGo"); bindSwitch("dVisible");
+
+  /* ---------- GRUPPE (Übergruppe) ---------- */
+  var gEditId = null;
+
+  function openGroupSheet(g) {
+    gEditId = g ? g._id : null;
+    $("groupSheetTitle").textContent = g ? "Gruppe bearbeiten" : "Neue Gruppe";
+    $("gDeleteBtn").hidden = !g;
+    $("gName").value = g ? g.name : "";
+    sw("gVisible", g ? g.visible !== false : true);
+    $("groupSheet").classList.add("is-open");
+  }
+
+  $("addGroupBtn").addEventListener("click", function () { openGroupSheet(null); });
+
+  $("gSaveBtn").addEventListener("click", function () {
+    var name = $("gName").value.trim();
+    if (!name) { toast("Bitte einen Namen eingeben"); return; }
+    if (gEditId) {
+      updateDoc(doc(fdb, "groups", gEditId), { name: name, visible: swOn("gVisible") }).catch(fbWriteError);
+    } else {
+      addDoc(collection(fdb, "groups"), { Id: nextId(state.groups), name: name, visible: swOn("gVisible"), seq: Date.now() }).catch(fbWriteError);
+    }
+    $("groupSheet").classList.remove("is-open");
+    toast("Gruppe gespeichert");
   });
 
-  $("addDeptBtn").addEventListener("click", function () {
-    var name = $("newDeptName").value.trim();
-    if (!name) { toast("Bitte einen Namen eingeben"); return; }
+  $("gDeleteBtn").addEventListener("click", function () {
+    if (!gEditId) return;
+    var g = state.groups.filter(function (x) { return x._id === gEditId; })[0];
+    var used = g ? state.depts.filter(function (d) { return d.GroupId === g.Id; }).length : 0;
+    if (used) { toast("Erst die " + used + " Warengruppen dieser Gruppe umhängen oder löschen"); return; }
+    if (!window.confirm("Diese Gruppe löschen?")) return;
+    deleteDoc(doc(fdb, "groups", gEditId)).catch(fbWriteError);
+    $("groupSheet").classList.remove("is-open");
+    toast("Gruppe gelöscht");
+  });
 
-    var maxId = 0;
-    state.depts.forEach(function (d) {
-      if (d.Id > maxId) maxId = d.Id;
-      if (d.GroupId > maxId) maxId = d.GroupId;
+  /* ---------- WARENGRUPPE (Untergruppe) ---------- */
+  var dEditId = null;
+  var dDraftTax = 1;
+
+  function buildTaxChipsInto(wrap, current, onPick) {
+    wrap.textContent = "";
+    TAXES.forEach(function (t) {
+      var b = document.createElement("button");
+      b.className = "chip mono";
+      b.type = "button";
+      b.textContent = t.label;
+      b.setAttribute("aria-pressed", String(current === t.id));
+      b.addEventListener("click", function () { onPick(t.id); });
+      wrap.appendChild(b);
     });
+  }
 
-    addDoc(collection(fdb, "departments"), {
-      Id: maxId + 1,
-      GroupId: maxId + 1,
-      name: name,
-      ToGo: $("newDeptToGo").getAttribute("aria-pressed") === "true" ? 1 : 0,
-      seq: Date.now()
+  function fillGroupSelect(sel, current) {
+    sel.textContent = "";
+    state.groups.forEach(function (g) {
+      var o = document.createElement("option");
+      o.value = String(g.Id);
+      o.textContent = g.name;
+      if (g.Id === current) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  function renderDeptTax() {
+    buildTaxChipsInto($("dTaxChips"), dDraftTax, function (id) { dDraftTax = id; renderDeptTax(); });
+  }
+
+  function openDeptSheet(d) {
+    if (!state.groups.length) { toast("Erst eine Gruppe anlegen"); return; }
+    dEditId = d ? d._id : null;
+    $("deptSheetTitle").textContent = d ? "Warengruppe bearbeiten" : "Neue Warengruppe";
+    $("dDeleteBtn").hidden = !d;
+    fillGroupSelect($("dGroup"), d ? d.GroupId : state.groups[0].Id);
+    $("dName").value = d ? d.name : "";
+    dDraftTax = d && d.primaryTaxId ? d.primaryTaxId : 1;
+    renderDeptTax();
+    sw("dToGo", d ? !!d.ToGo : false);
+    sw("dVisible", d ? d.visible !== false : true);
+    $("deptSheet").classList.add("is-open");
+  }
+
+  $("addDeptBtn").addEventListener("click", function () { openDeptSheet(null); });
+
+  $("dSaveBtn").addEventListener("click", function () {
+    var name = $("dName").value.trim();
+    if (!name) { toast("Bitte einen Namen eingeben"); return; }
+    var groupId = parseInt($("dGroup").value, 10);
+    var payload = {
+      GroupId: groupId, name: name, ToGo: swOn("dToGo") ? 1 : 0,
+      primaryTaxId: dDraftTax, visible: swOn("dVisible")
+    };
+    if (dEditId) {
+      updateDoc(doc(fdb, "departments", dEditId), payload).catch(fbWriteError);
+    } else {
+      payload.Id = nextId(state.depts);
+      payload.seq = Date.now();
+      addDoc(collection(fdb, "departments"), payload).catch(fbWriteError);
+    }
+    $("deptSheet").classList.remove("is-open");
+    toast("Warengruppe gespeichert");
+  });
+
+  $("dDeleteBtn").addEventListener("click", function () {
+    if (!dEditId) return;
+    var d = state.depts.filter(function (x) { return x._id === dEditId; })[0];
+    var used = d ? state.articles.filter(function (a) { return a.DepartmentId === d.Id; }).length : 0;
+    if (used) { toast("Erst die " + used + " Artikel dieser Warengruppe umhängen oder löschen"); return; }
+    if (!window.confirm("Diese Warengruppe löschen?")) return;
+    deleteDoc(doc(fdb, "departments", dEditId)).catch(fbWriteError);
+    $("deptSheet").classList.remove("is-open");
+    toast("Warengruppe gelöscht");
+  });
+
+  /* ---------- EINHEITEN ---------- */
+  $("addUnitBtn").addEventListener("click", function () {
+    state.units.push({ name: "Neu", unitId: 0, isWeight: false });
+    renderUnits();
+  });
+
+  $("saveUnitsBtn").addEventListener("click", function () {
+    setDoc(doc(fdb, "meta", "units"), { list: state.units }).then(function () {
+      toast("Einheiten gespeichert");
     }).catch(fbWriteError);
+  });
 
-    $("newDeptName").value = "";
-    $("newDeptToGo").setAttribute("aria-pressed", "false");
-    toast("„" + name + "“ angelegt");
+  /* ---------- BEDIENER ---------- */
+  var sEditId = null;
+
+  function openStaffSheet(s) {
+    sEditId = s ? s._id : null;
+    $("staffSheetTitle").textContent = s ? "Bediener bearbeiten" : "Neuer Bediener";
+    $("sDeleteBtn").hidden = !s;
+    $("sName").value = s ? s.name : "";
+    var sel = $("sType");
+    sel.textContent = "";
+    STAFF_TYPES.forEach(function (name, i) {
+      var o = document.createElement("option");
+      o.value = String(i + 1);
+      o.textContent = name;
+      if (s && parseInt(s.type, 10) === i + 1) o.selected = true;
+      sel.appendChild(o);
+    });
+    $("sPass").value = "";
+    $("staffSheet").classList.add("is-open");
+  }
+
+  $("addStaffBtn").addEventListener("click", function () { openStaffSheet(null); });
+
+  function nowStamp() {
+    var d = new Date();
+    function p(n, l) { return ("" + n).padStart(l || 2, "0"); }
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " +
+      p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) + "." + p(d.getMilliseconds(), 3);
+  }
+
+  $("sSaveBtn").addEventListener("click", function () {
+    var name = $("sName").value.trim();
+    if (!name) { toast("Bitte einen Namen eingeben"); return; }
+    var type = $("sType").value;
+    var pass = $("sPass").value;
+
+    if (sEditId) {
+      var s = state.staff.filter(function (x) { return x._id === sEditId; })[0];
+      var upd = { name: name, type: type };
+      if (pass) upd.password = md5(pass);
+      updateDoc(doc(fdb, "staff", sEditId), upd).catch(fbWriteError);
+    } else {
+      if (!pass) { toast("Bitte ein Passwort vergeben"); return; }
+      addDoc(collection(fdb, "staff"), {
+        type: type, name: name, password: md5(pass),
+        lastLogin: nowStamp(), created: nowStamp(), newPricePermit: "null", seq: Date.now()
+      }).catch(fbWriteError);
+    }
+    $("staffSheet").classList.remove("is-open");
+    toast("Bediener gespeichert — bitte an der Kasse testen");
+  });
+
+  $("sDeleteBtn").addEventListener("click", function () {
+    if (!sEditId) return;
+    if (!window.confirm("Diesen Bediener löschen?")) return;
+    deleteDoc(doc(fdb, "staff", sEditId)).catch(fbWriteError);
+    $("staffSheet").classList.remove("is-open");
+    toast("Bediener gelöscht");
+  });
+
+  /* ---------- FIRMA ---------- */
+  $("saveCompanyBtn").addEventListener("click", function () {
+    var c = {};
+    COMPANY_FIELDS.forEach(function (f) { c[f[0]] = ($("fco_" + f[0]).value || "").trim(); });
+    setDoc(doc(fdb, "meta", "company"), c).then(function () {
+      toast("Firmendaten gespeichert");
+    }).catch(fbWriteError);
   });
 
   function exportRows() {
@@ -2315,13 +3146,12 @@ const fdb = initializeFirestore(fbApp, {
     toast("Images.csv erstellt");
   });
 
-  // Unveränderte Stammdaten aus dem Original-Export der Kasse.
-  // Der Kassen-Import verarbeitet Obergruppen, Warengruppen, Artikel, Steuer,
-  // Beilagen und Zusatztexte als zusammengehörigen Satz — deshalb müssen diese
-  // Dateien mit auf den Stick, byte-genau wie die Kasse sie geschrieben hat.
-  // (SupplementText.csv ist im Original als einzige Datei ohne BOM.)
-  // Staff-, Rollen- und Firmendaten bleiben bewusst außen vor: nicht Teil der
-  // Artikel-Rubriken, und Staff.csv enthält Passwort-Hashes.
+  // Unveränderte Stammdaten aus dem Original-Export der Kasse, byte-genau.
+  // Der Kassen-Import verarbeitet die Rubriken als zusammengehörigen Satz, daher
+  // müssen alle Dateien mit auf den Stick. (SupplementText.csv ist als einzige
+  // ohne BOM; das Template Article_Template.csv hat bewusst eine Spalte weniger.)
+  // StaffRole/StaffType/Templates bleiben unverändert; Staff und CompanyInformation
+  // werden aus den bearbeitbaren Daten gebaut.
   var BOM = String.fromCharCode(0xFEFF);
   var STATIC_FILES = {
     "Category.csv": BOM + "CategoryName;\nGeneric;\n",
@@ -2330,7 +3160,12 @@ const fdb = initializeFirestore(fbApp, {
     "SupplementRelation.csv": BOM + "id;parent_id;child_id;position;is_required;type;\n",
     "SupplementText.csv": "id;name;description;\n",
     "Variant.csv": BOM + "id;name;\n",
-    "VariantDetails.csv": BOM + "id;variant_id;article_id;value;\n"
+    "VariantDetails.csv": BOM + "id;variant_id;article_id;value;\n",
+    "Article_Template.csv": BOM + "DepartmentId;isHasBarcode;articleNo;codeNo;text;isNegativePrice;taxId;priceBuyNet;priceSellNet;priceSell;unitId;deposit_id;tare_value;isDeposit;isPriceLimitCheck;priceLimit;isCouponArticle;isVariant;isNfc;supplementId;isScale\n1;N;1;1;Pain de Seigle;N;2;0,00;3,55;3,80;1;;0.0;N;N;0.0;N;N;N;1\n",
+    "Department_Template.csv": BOM + "GroupId;Id;CategoryName;ToGo;\n1;1;Obst W.-Gr. Kasse;1;\n",
+    "Group_Template.csv": BOM + "CategoryId;Id;GroupName;\n1;1;Pfand;\n",
+    "StaffType.csv": BOM + "Type;\nManager;\nBediener;\nTrainer;\nVerkäufer;\n",
+    "StaffRole.csv": BOM + "StaffType;AuthCode;Type;Name;FlagActive;\n6;1;2;Direktverkauf;X;\n6;2;1;Bediener hinzufügen;N;\n6;3;1;Bediener löschen;N;\n6;4;1;Bediener aktualisieren;N;\n6;5;4;Gruppe hinzufügen;N;\n6;6;4;Gruppe löschen;N;\n6;7;4;Gruppe aktualisieren;N;\n6;8;4;Warengruppe hinzufügen;N;\n6;9;4;Warengruppe löschen;N;\n6;10;4;Warengruppe aktualisieren;N;\n6;11;4;Artikel hinzufügen;N;\n6;12;4;Artikel löschen;N;\n6;13;4;Artikel aktualisieren;N;\n6;14;4;Steuer hinzufügen;N;\n6;15;4;Steuer löschen;N;\n6;16;4;Steuer aktualisieren;N;\n6;17;3;Bediener;N;\n6;18;3;Stammdaten;N;\n6;19;3;Konfiguration;N;\n6;20;3;Gruppe;N;\n6;21;3;Warengruppe;N;\n6;22;3;Artikel;N;\n6;23;3;Steuer;N;\n6;24;3;Bediener;N;\n6;25;3;Bedienerrechte;N;\n6;26;3;Firmeninformationen;N;\n6;27;1;Bedienerrechte hinzufügen;N;\n6;28;1;Bedienerrechte löschen;N;\n6;29;1;Bedienerrechte aktualisieren;N;\n6;30;3;Druckertyp;N;\n6;31;4;Druckertyp hinzufügen;N;\n6;32;4;Druckertyp löschen;N;\n6;33;4;Druckertyp aktualisieren;N;\n6;34;3;Sprache;X;\n6;35;3;Berichte;X;\n6;36;5;Schichtwechsel;X;\n6;37;5;Neuer Preis;N;\n6;38;2;Retoure;X;\n6;39;2;Bonstorno;X;\n6;40;2;Sofortstorno;X;\n6;42;2;Zahlart Umbuchen;X;\n6;43;2;ZWS;X;\n6;44;3;Menü;X;\n6;45;6;Bediener einzel-X;X;\n6;46;6;Alle Bediener-X;X;\n6;47;6;KSA-Report;X;\n6;48;6;X-Artikelbericht;X;\n6;49;6;X-Umsatz Pro Monat;N;\n6;50;6;X-Tagesbericht;X;\n6;51;7;Bediener einzel-Z;X;\n6;52;7;Alle Bediener-Z;X;\n6;53;7;Z-Artikelbericht;X;\n6;54;7;GoBD;N;\n6;55;7;DsFinV-K;N;\n6;56;7;Z-Tagesbericht;X;\n6;57;7;Z-Bericht und X-Bericht erhalten, ohne KSA-Bericht zu erhalten;N;\n6;58;1;Tisch reaktivieren;N;\n6;59;7;Rabatt;N;\n6;60;1;Trinkgeld AG;N;\n6;61;1;Trinkgeld AN;N;\n6;62;1;Benutzertabelle ändern;N;\n6;63;1;Gratis;N;\n6;64;1;Analyse;N;\n6;65;1;Kundenkarte ändern;N;\n"
   };
 
   // Alle Dateien inklusive Bilderordner in einem Paket
@@ -2341,7 +3176,9 @@ const fdb = initializeFirestore(fbApp, {
       { name: "Article.csv", bytes: enc.encode("﻿" + buildArticleCsv(rows)) },
       { name: "Department.csv", bytes: enc.encode("﻿" + buildDeptCsv()) },
       { name: "Group.csv", bytes: enc.encode("﻿" + buildGroupCsv()) },
-      { name: "Images.csv", bytes: enc.encode("﻿" + buildImagesCsv(rows)) }
+      { name: "Images.csv", bytes: enc.encode("﻿" + buildImagesCsv(rows)) },
+      { name: "Staff.csv", bytes: enc.encode("﻿" + buildStaffCsv()) },
+      { name: "CompanyInformation.csv", bytes: enc.encode("﻿" + buildCompanyCsv()) }
     ];
 
     Object.keys(STATIC_FILES).forEach(function (name) {
@@ -2405,12 +3242,19 @@ const fdb = initializeFirestore(fbApp, {
   })();
 
   $("importFile").addEventListener("change", function (e) {
-    var f = e.target.files && e.target.files[0];
-    if (!f) return;
-    var r = new FileReader();
-    r.onload = function () { importArticleCsv(String(r.result)); };
-    r.onerror = function () { toast("Datei konnte nicht gelesen werden"); };
-    r.readAsText(f, "utf-8");
+    var files = e.target.files ? Array.prototype.slice.call(e.target.files) : [];
+    // Reihenfolge: erst Gruppen, dann Warengruppen, dann Artikel — damit die
+    // Verknüpfungen beim Einlesen schon vorhanden sind.
+    files.sort(function (a, b) { return rank(a.name) - rank(b.name); });
+    function rank(n) { n = n.toLowerCase(); return n.indexOf("group") === 0 ? 0 : n.indexOf("department") === 0 ? 1 : 2; }
+    files.forEach(function (f, i) {
+      setTimeout(function () {
+        var r = new FileReader();
+        r.onload = function () { importCsv(String(r.result)); };
+        r.onerror = function () { toast("Datei konnte nicht gelesen werden"); };
+        r.readAsText(f, "utf-8");
+      }, i * 500);
+    });
     e.target.value = "";
   });
 
@@ -2507,5 +3351,6 @@ const fdb = initializeFirestore(fbApp, {
   if (!camSupported()) {
     showCamNotice("Dieser Browser kann die Kamera nicht öffnen. Tippe den Code über „Ohne Barcode anlegen“ ein.");
   }
+
 })();
 </script>
