@@ -511,6 +511,19 @@
     margin-left: 6px;
   }
 
+  /* Zeilen ohne Preisspalte (Gruppen, Warengruppen, Bediener): Name und
+     Infozeile untereinander. Sonst landet die Infozeile in der rechten
+     Rasterspalte und quetscht den Namen auf wenige Pixel zusammen. */
+  .item-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+
+  .item-stack .item-name { width: 100%; }
+  .item-stack .item-meta { width: 100%; }
+
   .empty {
     text-align: center;
     color: var(--ink-2);
@@ -2363,7 +2376,7 @@ const fdb = initializeFirestore(fbApp, {
 
   function listRow(wrap, title, sub, onClick) {
     var btn = document.createElement("button");
-    btn.className = "item";
+    btn.className = "item item-stack";
     btn.type = "button";
     var n = document.createElement("div");
     n.className = "item-name";
