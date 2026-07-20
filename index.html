@@ -1072,6 +1072,7 @@
       <div class="sub-head"><button class="icon-btn" data-goto="stammdaten" aria-label="Zurück">‹</button><h2>Einheiten</h2></div>
       <p class="hint">Hier stehen deine sechs Einheiten. <strong>„Nummer in der Kasse"</strong> ist die Zahl, mit der die Kasse diese Einheit intern speichert — sie muss übereinstimmen, sonst ordnet die Kasse den Artikel falsch zu. <strong>„Wird gewogen"</strong> schaltest du bei kg und g ein: Dann wird ein Artikel mit dieser Einheit automatisch zum Gewichtsartikel für die Waage.</p>
       <p class="notice"><strong>Stk = 1</strong> und <strong>kg = 3</strong> sind aus deinen Kassendaten gesichert. Bei <strong>ml, l, Paket, g</strong> habe ich die Nummern geraten — stell sie mit − / + richtig ein, sobald du sie kennst, und tippe auf „Einheiten speichern".</p>
+      <p class="dup" id="unitDupWarn"></p>
       <div class="list" id="unitList"></div>
       <button class="btn btn-outline btn-block" id="addUnitBtn">+ Einheit hinzufügen</button>
       <button class="btn btn-primary btn-block" id="saveUnitsBtn">Einheiten speichern</button>
@@ -1114,8 +1115,9 @@
       </div>
 
       <div class="card">
-        <h2 class="card-title">Kassenstand einlesen (einmalig)</h2>
-        <p class="hint">Damit die App deinen aktuellen Kassenstand kennt, lade vom Stick <strong>Group.csv</strong>, <strong>Department.csv</strong> und <strong>Article.csv</strong> (du kannst alle drei auf einmal auswählen). Vorhandenes bleibt, nur Fehlendes wird ergänzt.</p>
+        <h2 class="card-title">Kassenstand einlesen</h2>
+        <p class="hint">Lade vom Stick <strong>Group.csv</strong>, <strong>Department.csv</strong> und <strong>Article.csv</strong> (alle drei auf einmal auswählbar). Damit holst du den echten Stand deiner Kasse in die App.</p>
+        <p class="notice">Der bisherige Stand in der App wird dabei <strong>komplett ersetzt</strong> — genau wie beim Import an der Kasse, und für alle Mitarbeiter. Du wirst vorher noch einmal gefragt.</p>
         <label class="btn btn-outline btn-block" for="importFile">Kassen-Dateien einlesen</label>
         <input type="file" id="importFile" accept=".csv,text/csv" multiple hidden>
       </div>
@@ -1406,7 +1408,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc,
-  onSnapshot, runTransaction, serverTimestamp
+  onSnapshot, runTransaction, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 // Öffentliche Firebase-Konfiguration (kein Geheimnis — die Sicherheit machen
@@ -2110,75 +2112,57 @@ const fdb = initializeFirestore(fbApp, {
 
   /* ---------- CSV lesen ---------- */
 
-  // Erkennt anhand der Kopfzeile, ob Group.csv, Department.csv oder Article.csv
-  // geladen wurde, und übernimmt fehlende Einträge (vorhandene bleiben).
-  function importCsv(text) {
-    var head = text.replace(/^﻿/, "").split(/\r?\n/)[0].toLowerCase();
-    if (head.indexOf("groupname") !== -1) return importGroupsCsv(text);
-    if (head.indexOf("groupid") !== -1 && head.indexOf("categoryname") !== -1) return importDeptsCsv(text);
-    if (head.indexOf("departmentid") !== -1) return importArticleCsv(text);
-    toast("Unbekannte Datei — bitte Group.csv, Department.csv oder Article.csv");
-  }
-
   function csvRows(text) {
     return text.replace(/^﻿/, "").split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
   }
 
-  function importGroupsCsv(text) {
-    var lines = csvRows(text);
-    var added = 0, base = Date.now();
+  // Erkennt anhand der Kopfzeile, welche Kassendatei vorliegt.
+  function csvKind(text) {
+    var head = text.replace(/^﻿/, "").split(/\r?\n/)[0].toLowerCase();
+    if (head.indexOf("groupname") !== -1) return "groups";
+    if (head.indexOf("groupid") !== -1 && head.indexOf("categoryname") !== -1) return "departments";
+    if (head.indexOf("departmentid") !== -1) return "articles";
+    return null;
+  }
+
+  // Zeilen der jeweiligen Datei in Firestore-Dokumente umwandeln.
+  function parseGroups(text) {
+    var out = [], lines = csvRows(text), base = Date.now();
     for (var i = 1; i < lines.length; i++) {
       var c = lines[i].split(";");
       if (c.length < 3) continue;
       var id = parseInt(c[1], 10);
-      if (!id || groupById(id)) continue;
-      addDoc(collection(fdb, "groups"), { Id: id, name: (c[2] || "").trim(), visible: true, seq: base + i }).catch(fbWriteError);
-      added++;
+      if (!id) continue;
+      out.push({ Id: id, name: (c[2] || "").trim(), visible: true, hasImage: false, seq: base + i });
     }
-    toast(added + " Gruppen eingelesen");
+    return out;
   }
 
-  function importDeptsCsv(text) {
-    var lines = csvRows(text);
-    var added = 0, base = Date.now();
+  function parseDepts(text) {
+    var out = [], lines = csvRows(text), base = Date.now();
     for (var i = 1; i < lines.length; i++) {
       var c = lines[i].split(";");
       if (c.length < 4) continue;
       var id = parseInt(c[1], 10);
-      if (!id || deptById(id)) continue;
-      addDoc(collection(fdb, "departments"), {
+      if (!id) continue;
+      out.push({
         GroupId: parseInt(c[0], 10) || 1, Id: id, name: (c[2] || "").trim(),
-        ToGo: parseInt(c[3], 10) || 0, primaryTaxId: 1, visible: true, seq: base + i
-      }).catch(fbWriteError);
-      added++;
+        ToGo: parseInt(c[3], 10) || 0, primaryTaxId: 1, visible: true, hasImage: false, seq: base + i
+      });
     }
-    toast(added + " Warengruppen eingelesen");
+    return out;
   }
 
-  function importArticleCsv(text) {
-    var lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
-    if (!lines.length) { toast("Datei ist leer"); return; }
-
-    var head = lines[0].toLowerCase();
-    if (head.indexOf("departmentid") === -1) {
-      toast("Das sieht nicht nach Article.csv aus");
-      return;
-    }
-
-    var added = 0;
-    var base = Date.now();
+  function parseArticles(text) {
+    var out = [], lines = csvRows(text), base = Date.now();
+    var X = function (v) { return (v || "").trim().toUpperCase() === "X"; };
     for (var i = 1; i < lines.length; i++) {
       var c = lines[i].split(";");
       if (c.length < 11) continue;
-
-      var code = (c[2] || "").trim();
-      if (findByCode(code, null)) continue;
-
-      var X = function (v) { return (v || "").trim().toUpperCase() === "X"; };
-      addDoc(collection(fdb, "articles"), toDoc({
+      var o = toDoc({
         DepartmentId: parseInt(c[0], 10) || 1,
         hasBarcode: X(c[1]),
-        code: code,
+        code: (c[2] || "").trim(),
         text: (c[4] || "").trim(),
         isNegativePrice: X(c[5]),
         taxId: parseInt(c[6], 10) || 1,
@@ -2196,13 +2180,21 @@ const fdb = initializeFirestore(fbApp, {
         supplementId: (c[19] || "0").trim(),
         isScale: X(c[20]),
         hasImage: false,
-        isNew: false,
-        seq: base + i
-      })).catch(fbWriteError);
-      added++;
+        isNew: false
+      });
+      o.seq = base + i;
+      out.push(o);
     }
+    return out;
+  }
 
-    toast(added + " vorhandene Artikel eingelesen");
+  // Rubrik komplett ersetzen — genau wie der Import an der Kasse:
+  // erst alles löschen, dann den Stand aus der Datei anlegen.
+  function replaceCollection(collName, current, rows) {
+    var batch = writeBatch(fdb);
+    current.forEach(function (d) { batch.delete(doc(fdb, collName, d._id)); });
+    rows.forEach(function (r) { batch.set(doc(collection(fdb, collName)), r); });
+    return batch.commit();
   }
 
   /* ---------- Rendern ---------- */
@@ -2362,10 +2354,12 @@ const fdb = initializeFirestore(fbApp, {
       minus.addEventListener("click", function () {
         state.units[idx].unitId = Math.max(0, (state.units[idx].unitId || 0) - 1);
         val.textContent = state.units[idx].unitId;
+        refreshUnitsValidity();
       });
       plus.addEventListener("click", function () {
         state.units[idx].unitId = (state.units[idx].unitId || 0) + 1;
         val.textContent = state.units[idx].unitId;
+        refreshUnitsValidity();
       });
       st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
       strow.appendChild(lab); strow.appendChild(st);
@@ -2392,6 +2386,7 @@ const fdb = initializeFirestore(fbApp, {
       wrap.appendChild(card);
     });
     if ($("cntUnits")) $("cntUnits").textContent = state.units.length + " Stück";
+    refreshUnitsValidity();
   }
 
   function renderStaff() {
@@ -2595,6 +2590,8 @@ const fdb = initializeFirestore(fbApp, {
       w.classList.remove("is-shown");
       w.classList.remove("is-flash");
     }
+    // Speichern sperren, solange die Nummer doppelt ist.
+    $("saveBtn").disabled = !!hit;
   }
 
   /* ---------- Sheet ---------- */
@@ -3295,8 +3292,44 @@ const fdb = initializeFirestore(fbApp, {
 
   /* ---------- EINHEITEN ---------- */
 
+  // Jede Einheit braucht eine eigene Nummer — sonst ordnet die Kasse falsch zu.
+  function duplicateUnitIds() {
+    var seen = {}, dups = {};
+    state.units.forEach(function (u) {
+      var id = parseInt(u.unitId, 10);
+      if (isNaN(id)) return;
+      if (seen[id]) dups[id] = true;
+      seen[id] = true;
+    });
+    return Object.keys(dups);
+  }
+
+  function refreshUnitsValidity() {
+    var dups = duplicateUnitIds();
+    var w = $("unitDupWarn");
+    var btn = $("saveUnitsBtn");
+    if (!w || !btn) return dups;
+    if (dups.length) {
+      var namen = state.units.filter(function (u) { return dups.indexOf(String(u.unitId)) !== -1; })
+        .map(function (u) { return u.name; }).join(", ");
+      w.textContent = "Nummer " + dups.join(" und ") + " ist doppelt vergeben (" + namen +
+        "). Jede Einheit braucht eine eigene Nummer.";
+      w.classList.add("is-shown");
+      btn.disabled = true;
+    } else {
+      w.classList.remove("is-shown");
+      btn.disabled = false;
+    }
+    return dups;
+  }
+
   // Namen/Nummern säubern und zentral sichern.
   function saveUnits(msg) {
+    if (duplicateUnitIds().length) {
+      refreshUnitsValidity();
+      toast("Doppelte Einheiten-Nummer — bitte zuerst korrigieren", 4000);
+      return Promise.resolve();
+    }
     var list = state.units.map(function (u) {
       return {
         name: String(u.name == null ? "" : u.name).trim() || "Einheit",
@@ -3517,21 +3550,76 @@ const fdb = initializeFirestore(fbApp, {
     });
   })();
 
+  function readFileText(f) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result)); };
+      r.onerror = function () { reject(new Error(f.name)); };
+      r.readAsText(f, "utf-8");
+    });
+  }
+
   $("importFile").addEventListener("change", function (e) {
     var files = e.target.files ? Array.prototype.slice.call(e.target.files) : [];
-    // Reihenfolge: erst Gruppen, dann Warengruppen, dann Artikel — damit die
-    // Verknüpfungen beim Einlesen schon vorhanden sind.
-    files.sort(function (a, b) { return rank(a.name) - rank(b.name); });
-    function rank(n) { n = n.toLowerCase(); return n.indexOf("group") === 0 ? 0 : n.indexOf("department") === 0 ? 1 : 2; }
-    files.forEach(function (f, i) {
-      setTimeout(function () {
-        var r = new FileReader();
-        r.onload = function () { importCsv(String(r.result)); };
-        r.onerror = function () { toast("Datei konnte nicht gelesen werden"); };
-        r.readAsText(f, "utf-8");
-      }, i * 500);
-    });
     e.target.value = "";
+    if (!files.length) return;
+
+    Promise.all(files.map(readFileText)).then(function (texts) {
+      var found = {};
+      texts.forEach(function (t) {
+        var kind = csvKind(t);
+        if (kind) found[kind] = t;
+      });
+
+      var kinds = Object.keys(found);
+      if (!kinds.length) {
+        toast("Keine passende Datei — bitte Group.csv, Department.csv oder Article.csv", 4000);
+        return;
+      }
+
+      var namen = { groups: "Gruppen", departments: "Warengruppen", articles: "Artikel" };
+      var was = kinds.map(function (k) { return namen[k]; }).join(", ");
+      if (!window.confirm(
+        "Kassenstand einlesen: " + was + "\n\n" +
+        "Achtung: Der bisherige Stand in der App wird dabei KOMPLETT ERSETZT — " +
+        "für alle Mitarbeiter. Fortfahren?")) return;
+
+      // Reihenfolge: erst Gruppen, dann Warengruppen, dann Artikel.
+      var chain = Promise.resolve();
+      var bericht = [];
+
+      if (found.groups) {
+        chain = chain.then(function () {
+          var rows = parseGroups(found.groups);
+          bericht.push(rows.length + " Gruppen");
+          return replaceCollection("groups", state.groups, rows);
+        });
+      }
+      if (found.departments) {
+        chain = chain.then(function () {
+          var rows = parseDepts(found.departments);
+          bericht.push(rows.length + " Warengruppen");
+          return replaceCollection("departments", state.depts, rows);
+        });
+      }
+      if (found.articles) {
+        chain = chain.then(function () {
+          // Bilder der alten Artikel mit entfernen, sonst bleiben Waisen liegen.
+          state.articles.forEach(function (a) { if (a.hasImage) deleteImage(a.code); });
+          var rows = parseArticles(found.articles);
+          bericht.push(rows.length + " Artikel");
+          return replaceCollection("articles", state.articles, rows);
+        });
+      }
+
+      chain.then(function () {
+        toast("Kassenstand übernommen: " + bericht.join(", "), 5000);
+      }).catch(function () {
+        toast("Einlesen fehlgeschlagen — bitte erneut versuchen", 4000);
+      });
+    }).catch(function () {
+      toast("Datei konnte nicht gelesen werden");
+    });
   });
 
   $("resetBtn").addEventListener("click", function () {
