@@ -1116,9 +1116,11 @@
 
       <div class="card">
         <h2 class="card-title">Kassenstand einlesen</h2>
-        <p class="hint">Lade vom Stick <strong>Group.csv</strong>, <strong>Department.csv</strong> und <strong>Article.csv</strong> (alle drei auf einmal auswählbar). Damit holst du den echten Stand deiner Kasse in die App.</p>
+        <p class="hint">Wähle einfach den <strong>ganzen Kassen-Ordner</strong> vom Stick (z. B. „Kasse das letste"). Die App sucht sich selbst die richtigen Dateien heraus: Group, Department, Article, Staff und CompanyInformation. Vorlagen (<em>_Template</em>) und alles andere werden ignoriert.</p>
         <p class="notice">Der bisherige Stand in der App wird dabei <strong>komplett ersetzt</strong> — genau wie beim Import an der Kasse, und für alle Mitarbeiter. Du wirst vorher noch einmal gefragt.</p>
-        <label class="btn btn-outline btn-block" for="importFile">Kassen-Dateien einlesen</label>
+        <label class="btn btn-primary btn-block" for="importDir">Ganzen Ordner wählen</label>
+        <input type="file" id="importDir" webkitdirectory directory multiple hidden>
+        <label class="btn btn-outline btn-block" for="importFile">Einzelne Dateien wählen</label>
         <input type="file" id="importFile" accept=".csv,text/csv" multiple hidden>
       </div>
 
@@ -2116,13 +2118,21 @@ const fdb = initializeFirestore(fbApp, {
     return text.replace(/^﻿/, "").split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
   }
 
-  // Erkennt anhand der Kopfzeile, welche Kassendatei vorliegt.
-  function csvKind(text) {
-    var head = text.replace(/^﻿/, "").split(/\r?\n/)[0].toLowerCase();
-    if (head.indexOf("groupname") !== -1) return "groups";
-    if (head.indexOf("groupid") !== -1 && head.indexOf("categoryname") !== -1) return "departments";
-    if (head.indexOf("departmentid") !== -1) return "articles";
-    return null;
+  // Erkennung am DATEINAMEN, nicht an der Kopfzeile: Group_Template.csv &Co.
+  // haben dieselbe Kopfzeile wie die echten Dateien und würden sie sonst
+  // überschreiben (Group_Template enthält nur „Pfand").
+  var IMPORT_FILES = {
+    "group.csv": "groups",
+    "department.csv": "departments",
+    "article.csv": "articles",
+    "staff.csv": "staff",
+    "companyinformation.csv": "company"
+  };
+
+  function fileKind(fileName) {
+    var n = String(fileName || "").split(/[\\/]/).pop().toLowerCase();
+    if (n.indexOf("_template") !== -1) return null;   // Vorlagen nie einlesen
+    return IMPORT_FILES[n] || null;
   }
 
   // Zeilen der jeweiligen Datei in Firestore-Dokumente umwandeln.
@@ -2186,6 +2196,32 @@ const fdb = initializeFirestore(fbApp, {
       out.push(o);
     }
     return out;
+  }
+
+  function parseStaff(text) {
+    var out = [], lines = csvRows(text), base = Date.now();
+    for (var i = 1; i < lines.length; i++) {
+      var c = lines[i].split(";");
+      if (c.length < 3) continue;
+      var name = (c[1] || "").trim();
+      if (!name) continue;
+      out.push({
+        type: (c[0] || "").trim(), name: name, password: (c[2] || "").trim(),
+        lastLogin: (c[3] || "").trim(), created: (c[4] || "").trim(),
+        newPricePermit: (c[5] || "null").trim(), seq: base + i
+      });
+    }
+    return out;
+  }
+
+  function parseCompany(text) {
+    var lines = csvRows(text);
+    if (lines.length < 2) return null;
+    var c = lines[1].split(";");
+    var keys = ["Company", "Country", "City", "State", "Street", "No", "PostCode", "TaxNo", "CurrencyCode"];
+    var o = {};
+    keys.forEach(function (k, i) { o[k] = (c[i] || "").trim(); });
+    return o;
   }
 
   // Rubrik komplett ersetzen — genau wie der Import an der Kasse:
@@ -3559,26 +3595,36 @@ const fdb = initializeFirestore(fbApp, {
     });
   }
 
-  $("importFile").addEventListener("change", function (e) {
-    var files = e.target.files ? Array.prototype.slice.call(e.target.files) : [];
-    e.target.value = "";
+  var KIND_LABEL = {
+    groups: "Gruppen", departments: "Warengruppen", articles: "Artikel",
+    staff: "Bediener", company: "Firmendaten"
+  };
+
+  function handleImportFiles(fileList) {
+    var files = fileList ? Array.prototype.slice.call(fileList) : [];
     if (!files.length) return;
 
-    Promise.all(files.map(readFileText)).then(function (texts) {
-      var found = {};
-      texts.forEach(function (t) {
-        var kind = csvKind(t);
-        if (kind) found[kind] = t;
-      });
-
-      var kinds = Object.keys(found);
-      if (!kinds.length) {
-        toast("Keine passende Datei — bitte Group.csv, Department.csv oder Article.csv", 4000);
-        return;
+    // Nur die Dateien lesen, die wir wirklich brauchen (Ordner enthält viel mehr).
+    var wanted = [];
+    files.forEach(function (f) {
+      var kind = fileKind(f.webkitRelativePath || f.name);
+      if (kind && !wanted.some(function (w) { return w.kind === kind; })) {
+        wanted.push({ kind: kind, file: f });
       }
+    });
 
-      var namen = { groups: "Gruppen", departments: "Warengruppen", articles: "Artikel" };
-      var was = kinds.map(function (k) { return namen[k]; }).join(", ");
+    if (!wanted.length) {
+      toast("Im Ordner war keine passende Datei (Group/Department/Article/Staff/CompanyInformation)", 5000);
+      return;
+    }
+
+    Promise.all(wanted.map(function (w) {
+      return readFileText(w.file).then(function (t) { return { kind: w.kind, text: t }; });
+    })).then(function (loaded) {
+      var found = {};
+      loaded.forEach(function (l) { found[l.kind] = l.text; });
+
+      var was = Object.keys(found).map(function (k) { return KIND_LABEL[k]; }).join(", ");
       if (!window.confirm(
         "Kassenstand einlesen: " + was + "\n\n" +
         "Achtung: Der bisherige Stand in der App wird dabei KOMPLETT ERSETZT — " +
@@ -3611,15 +3657,40 @@ const fdb = initializeFirestore(fbApp, {
           return replaceCollection("articles", state.articles, rows);
         });
       }
+      if (found.staff) {
+        chain = chain.then(function () {
+          var rows = parseStaff(found.staff);
+          bericht.push(rows.length + " Bediener");
+          return replaceCollection("staff", state.staff, rows);
+        });
+      }
+      if (found.company) {
+        chain = chain.then(function () {
+          var c = parseCompany(found.company);
+          if (!c) return;
+          bericht.push("Firmendaten");
+          return setDoc(doc(fdb, "meta", "company"), c);
+        });
+      }
 
       chain.then(function () {
-        toast("Kassenstand übernommen: " + bericht.join(", "), 5000);
+        toast("Kassenstand übernommen: " + bericht.join(", "), 6000);
       }).catch(function () {
         toast("Einlesen fehlgeschlagen — bitte erneut versuchen", 4000);
       });
     }).catch(function () {
       toast("Datei konnte nicht gelesen werden");
     });
+  }
+
+  $("importFile").addEventListener("change", function (e) {
+    handleImportFiles(e.target.files);
+    e.target.value = "";
+  });
+
+  $("importDir").addEventListener("change", function (e) {
+    handleImportFiles(e.target.files);
+    e.target.value = "";
   });
 
   $("resetBtn").addEventListener("click", function () {
