@@ -1824,7 +1824,7 @@ const fdb = initializeFirestore(fbApp, {
     }));
     if (state.articles.length === 0) seedInto("articles", "articlesSeeded", SEED_ARTICLES.map(function (a, i) {
       var o = toDoc(a); o.seq = i + 1; return o;
-    }));
+    }), function (r) { return articleDocId(r.code); });
     if (state.staff.length === 0) seedInto("staff", "staffSeeded", SEED_STAFF.map(function (s, i) {
       return { type: s.type, name: s.name, password: s.password, lastLogin: s.lastLogin, created: s.created, newPricePermit: s.newPricePermit, seq: i + 1 };
     }));
@@ -1832,12 +1832,15 @@ const fdb = initializeFirestore(fbApp, {
     if (!state.company) seedDocIfMissing(doc(fdb, "meta", "company"), SEED_COMPANY);
   }
 
-  function seedInto(coll, guardName, rows) {
+  function seedInto(coll, guardName, rows, idFn) {
     runTransaction(fdb, function (tx) {
       var guardRef = doc(fdb, "meta", guardName);
       return tx.get(guardRef).then(function (m) {
         if (m.exists()) return;
-        rows.forEach(function (row) { tx.set(doc(collection(fdb, coll)), row); });
+        rows.forEach(function (row) {
+          var id = idFn ? idFn(row) : null;
+          tx.set(id ? doc(fdb, coll, id) : doc(collection(fdb, coll)), row);
+        });
         tx.set(guardRef, { at: serverTimestamp() });
       });
     }).catch(function () { /* jemand anderes hat bereits angelegt */ });
@@ -1988,6 +1991,69 @@ const fdb = initializeFirestore(fbApp, {
     var n = 1;
     while (used[n]) n++;
     return String(n);
+  }
+
+  /* ---------- Eindeutige Artikelnummern bei mehreren Handys ----------
+     1) Der Artikel wird unter seiner Nummer gespeichert (nicht unter einer
+        Zufalls-ID). Damit kann es dieselbe Nummer technisch nur einmal geben:
+        Legen zwei Leute gleichzeitig dasselbe Produkt an, entsteht ein
+        Artikel statt zwei.
+     2) Neue PLU-Nummern werden zentral in der Datenbank reserviert, damit
+        nicht vier Handys dieselbe Nummer ausrechnen. */
+
+  function articleDocId(code) {
+    var id = String(code == null ? "" : code).trim().replace(/[^A-Za-z0-9_-]/g, "_");
+    if (!id || id === "." || id === "..") return null;
+    return id.slice(0, 200);
+  }
+
+  // Startwert, falls der zentrale Zähler noch nicht existiert: über allen
+  // bisherigen PLU-Nummern (EAN-Codes zählen hier nicht mit).
+  function pluStartValue() {
+    var start = 1;
+    state.articles.forEach(function (a) {
+      if (a.hasBarcode) return;
+      if (!/^\d+$/.test(a.code)) return;
+      var n = parseInt(a.code, 10);
+      if (n >= start) start = n + 1;
+    });
+    return start;
+  }
+
+  // Reserviert die nächste freie Nummer atomar — zwei Handys bekommen nie
+  // dieselbe. Braucht Internet (Transaktionen laufen nicht offline).
+  function claimPlu() {
+    var ref = doc(fdb, "meta", "pluCounter");
+    var start = pluStartValue();
+    return runTransaction(fdb, function (tx) {
+      return tx.get(ref).then(function (m) {
+        var n = (m.exists() && typeof m.data().next === "number") ? m.data().next : start;
+        if (n < start) n = start;
+        // Nummern überspringen, die schon von Hand vergeben wurden
+        var guard = 0;
+        while (findByCode(String(n), null) && guard++ < 1000) n++;
+        tx.set(ref, { next: n + 1 });
+        return String(n);
+      });
+    });
+  }
+
+  // Neuen Artikel unter seiner Nummer ablegen. setDoc statt addDoc: gleiche
+  // Nummer = gleiches Dokument, also keine Doppel-Einträge möglich.
+  function saveNewArticle(payload) {
+    var id = articleDocId(payload.code);
+    if (!id) return Promise.reject(new Error("bad-code"));
+    return setDoc(doc(fdb, "articles", id), payload);
+  }
+
+  // Beim Bearbeiten kann sich die Nummer ändern — dann umziehen.
+  function saveEditedArticle(oldId, payload) {
+    var newId = articleDocId(payload.code);
+    if (!newId) return Promise.reject(new Error("bad-code"));
+    if (newId === oldId) return updateDoc(doc(fdb, "articles", oldId), payload);
+    return setDoc(doc(fdb, "articles", newId), payload).then(function () {
+      return deleteDoc(doc(fdb, "articles", oldId));
+    });
   }
 
   /* ---------- CSV bauen ---------- */
@@ -2226,10 +2292,14 @@ const fdb = initializeFirestore(fbApp, {
 
   // Rubrik komplett ersetzen — genau wie der Import an der Kasse:
   // erst alles löschen, dann den Stand aus der Datei anlegen.
-  function replaceCollection(collName, current, rows) {
+  // idFn: optionaler fester Dokument-Schlüssel (bei Artikeln die Nummer).
+  function replaceCollection(collName, current, rows, idFn) {
     var batch = writeBatch(fdb);
     current.forEach(function (d) { batch.delete(doc(fdb, collName, d._id)); });
-    rows.forEach(function (r) { batch.set(doc(collection(fdb, collName)), r); });
+    rows.forEach(function (r) {
+      var id = idFn ? idFn(r) : null;
+      batch.set(id ? doc(fdb, collName, id) : doc(collection(fdb, collName)), r);
+    });
     return batch.commit();
   }
 
@@ -2643,6 +2713,9 @@ const fdb = initializeFirestore(fbApp, {
       DepartmentId: lastDept,
       hasBarcode: hasBarcode,
       code: code || (hasBarcode ? "" : nextPlu()),
+      // Vorschlag der App: die endgültige Nummer wird beim Speichern zentral
+      // reserviert. Sobald der Nutzer sie von Hand ändert, bleibt seine stehen.
+      pluAuto: !hasBarcode && !code,
       text: "",
       isNegativePrice: false,
       taxId: tax,
@@ -2799,18 +2872,43 @@ const fdb = initializeFirestore(fbApp, {
     draft.buy = isNaN(b) ? "0,00" : de(b);
 
     if (editId) {
-      updateDoc(doc(fdb, "articles", editId), toDoc(draft)).catch(fbWriteError);
+      saveEditedArticle(editId, toDoc(draft)).catch(fbWriteError);
       closeSheet();
       toast("Geändert");
-    } else {
-      var name = draft.text;
+      return;
+    }
+
+    var name = draft.text;
+    var wasOnScan = $("view-scan").classList.contains("is-active");
+
+    // Bei automatisch vergebener PLU die Nummer zentral reservieren, damit
+    // vier Handys nie dieselbe bekommen. Solange läuft, Speichern sperren.
+    var btn = $("saveBtn");
+    btn.disabled = true;
+
+    var nummer = (!draft.hasBarcode && draft.pluAuto)
+      ? claimPlu()
+      : Promise.resolve(draft.code);
+
+    nummer.then(function (code) {
+      draft.code = code;
       var payload = toDoc(draft);
       payload.seq = Date.now();
-      addDoc(collection(fdb, "articles"), payload).catch(fbWriteError);
+      return saveNewArticle(payload).then(function () { return code; });
+    }).then(function (code) {
+      btn.disabled = false;
       closeSheet();
-      toast("„" + name + "“ gespeichert");
-      if ($("view-scan").classList.contains("is-active")) startCam();
-    }
+      toast("„" + name + "“ gespeichert · Nr. " + code, 3000);
+      if (wasOnScan) startCam();
+    }).catch(function (err) {
+      btn.disabled = false;
+      if (err && err.message === "bad-code") {
+        toast("Diese Nummer lässt sich nicht speichern — bitte ändern", 4000);
+      } else {
+        // Transaktionen brauchen Internet: ohne Verbindung keine Nummer.
+        toast("Keine Verbindung — Artikel wurde nicht gespeichert. Bitte erneut versuchen.", 5000);
+      }
+    });
   }
 
   /* ---------- Kamera / Scanner ---------- */
@@ -3009,6 +3107,9 @@ const fdb = initializeFirestore(fbApp, {
     var next = code.trim();
     var prev = draft.code;
     if (next === prev) return;
+
+    // Von Hand gesetzte Nummer nicht mehr automatisch überschreiben.
+    draft.pluAuto = false;
 
     var move = draft.hasImage && prev
       ? getImage(prev).then(function (b) {
@@ -3654,7 +3755,9 @@ const fdb = initializeFirestore(fbApp, {
           state.articles.forEach(function (a) { if (a.hasImage) deleteImage(a.code); });
           var rows = parseArticles(found.articles);
           bericht.push(rows.length + " Artikel");
-          return replaceCollection("articles", state.articles, rows);
+          return replaceCollection("articles", state.articles, rows, function (r) {
+            return articleDocId(r.code);
+          });
         });
       }
       if (found.staff) {
