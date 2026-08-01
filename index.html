@@ -2049,6 +2049,17 @@ const fdb = initializeFirestore(fbApp, {
     return null;
   }
 
+  // Gleicher Name (Groß/Klein und Leerzeichen egal) darf nur einmal vorkommen.
+  function findByName(name, skipId) {
+    var key = String(name || "").trim().toLowerCase();
+    if (!key) return null;
+    for (var i = 0; i < state.articles.length; i++) {
+      if (skipId && state.articles[i]._id === skipId) continue;
+      if (String(state.articles[i].text || "").trim().toLowerCase() === key) return state.articles[i];
+    }
+    return null;
+  }
+
   function newArticles() {
     return state.articles.filter(function (a) { return a.isNew; });
   }
@@ -2826,17 +2837,25 @@ const fdb = initializeFirestore(fbApp, {
 
   function updateDupWarn() {
     var w = $("dupWarn");
-    var hit = draft.code ? findByCode(draft.code, editId) : null;
-    if (hit) {
+    var codeHit = draft.code ? findByCode(draft.code, editId) : null;
+    // Namen live aus dem Feld prüfen (draft.text ist evtl. noch nicht aktuell).
+    var nameNow = $("fName") ? $("fName").value : draft.text;
+    var nameHit = findByName(nameNow, editId);
+
+    if (codeHit) {
       w.textContent = "Nummer " + draft.code + " ist schon vergeben an „" +
-        (hit.text || "?") + "“. Bitte eine andere Nummer wählen.";
+        (codeHit.text || "?") + "“. Bitte eine andere Nummer wählen.";
+      w.classList.add("is-shown");
+    } else if (nameHit) {
+      w.textContent = "Der Name „" + (nameNow || "").trim() + "“ ist schon vergeben (Nr. " +
+        nameHit.code + "). Bitte einen anderen Namen wählen.";
       w.classList.add("is-shown");
     } else {
       w.classList.remove("is-shown");
       w.classList.remove("is-flash");
     }
-    // Speichern sperren, solange die Nummer doppelt ist.
-    $("saveBtn").disabled = !!hit;
+    // Speichern sperren, solange Nummer ODER Name doppelt ist.
+    $("saveBtn").disabled = !!(codeHit || nameHit);
   }
 
   /* ---------- Sheet ---------- */
@@ -3000,6 +3019,24 @@ const fdb = initializeFirestore(fbApp, {
       void w.offsetWidth;
       w.classList.add("is-flash");
       toast("Diese Nummer gibt es schon: „" + (dup.text || "?") + "“", 4500);
+      return;
+    }
+
+    // Gleicher Artikelname darf nicht doppelt vorkommen.
+    var nameDup = findByName(draft.text, editId);
+    if (nameDup) {
+      var wn = $("dupWarn");
+      wn.textContent = "Der Name „" + draft.text + "“ ist schon vergeben (Nr. " +
+        nameDup.code + "). Bitte einen anderen Namen wählen.";
+      wn.classList.add("is-shown");
+      var body2 = document.querySelector("#sheet .sheet-body");
+      if (body2) body2.scrollTop = 0;
+      if (wn.scrollIntoView) wn.scrollIntoView({ block: "center" });
+      wn.classList.remove("is-flash");
+      void wn.offsetWidth;
+      wn.classList.add("is-flash");
+      toast("Diesen Namen gibt es schon: „" + draft.text + "“", 4500);
+      $("fName").focus();
       return;
     }
 
@@ -3342,6 +3379,8 @@ const fdb = initializeFirestore(fbApp, {
   ["fName", "fPrice", "fBuy", "fTare", "fDepositId", "fLimitVal", "fSupplement"].forEach(function (id) {
     $(id).addEventListener("input", persistDraft);
   });
+  // Name live auf Dubletten prüfen (sperrt Speichern wie bei der Nummer).
+  $("fName").addEventListener("input", updateDupWarn);
   $("photoInput").addEventListener("click", persistDraft);
   $("galleryInput").addEventListener("click", persistDraft);
 
