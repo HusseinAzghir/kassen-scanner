@@ -3283,37 +3283,47 @@ const fdb = initializeFirestore(fbApp, {
     var mySeq = ++lookupSeq;
     if (el) { el.hidden = false; el.textContent = "Suche Produktname…"; }
 
-    var url = "https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) +
-      ".json?fields=product_name,product_name_de,brands,quantity";
+    // Mehrere Datenbanken nacheinander: Lebensmittel, dann Non-Food, dann Kosmetik.
+    var HOSTS = [
+      "https://world.openfoodfacts.org",
+      "https://world.openproductsfacts.org",
+      "https://world.openbeautyfacts.org"
+    ];
 
-    // 6 Sekunden Zeitlimit, danach still aufgeben.
-    var ctrl = ("AbortController" in window) ? new AbortController() : null;
-    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 6000);
+    function tryHost(i) {
+      if (mySeq !== lookupSeq || !draft || draft.code !== code) return; // abgelöst
+      if (i >= HOSTS.length) { if ($("nameLookup")) $("nameLookup").hidden = true; return; }
 
-    fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        clearTimeout(timer);
-        // Zwischenzeitlich anderes Formular/anderer Code: Ergebnis verwerfen.
-        if (mySeq !== lookupSeq || !draft || draft.code !== code) return;
-        if (!$("nameLookup")) return;
+      var url = HOSTS[i] + "/api/v2/product/" + encodeURIComponent(code) +
+        ".json?fields=product_name,product_name_de,brands,quantity";
+      var ctrl = ("AbortController" in window) ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 5000);
 
-        var name = buildProductName(data);
-        if (name && !$("fName").value.trim()) {
-          $("fName").value = name;
-          if (draft) draft.text = name;
-          persistDraft();
-          updateDupWarn();
-          $("nameLookup").textContent = "Name aus Produktdatenbank — bei Bedarf ändern.";
-          focusPrice();
-        } else {
-          $("nameLookup").hidden = true;
-        }
-      })
-      .catch(function () {
-        clearTimeout(timer);
-        if (mySeq === lookupSeq && $("nameLookup")) $("nameLookup").hidden = true;
-      });
+      fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          clearTimeout(timer);
+          if (mySeq !== lookupSeq || !draft || draft.code !== code || !$("nameLookup")) return;
+
+          var name = buildProductName(data);
+          if (name && !$("fName").value.trim()) {
+            $("fName").value = name;
+            if (draft) draft.text = name;
+            persistDraft();
+            updateDupWarn();
+            $("nameLookup").textContent = "Name aus Produktdatenbank — bei Bedarf ändern.";
+            focusPrice();
+          } else {
+            tryHost(i + 1);   // in der nächsten Datenbank weitersuchen
+          }
+        })
+        .catch(function () {
+          clearTimeout(timer);
+          tryHost(i + 1);
+        });
+    }
+
+    tryHost(0);
   }
 
   function buildProductName(data) {
