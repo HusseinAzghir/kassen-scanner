@@ -524,6 +524,42 @@
   .item-stack .item-name { width: 100%; }
   .item-stack .item-meta { width: 100%; }
 
+  .search-box {
+    width: 100%;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    min-height: 48px;
+  }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .filter-grid select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    min-height: 46px;
+  }
+
+  .list-count {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--ink-2);
+  }
+
   .empty {
     text-align: center;
     color: var(--ink-2);
@@ -1032,11 +1068,28 @@
 
     <!-- ============ LISTE ============ -->
     <section class="view" id="view-list" aria-label="Artikelliste">
-      <div class="chips" role="group" aria-label="Filter">
-        <button class="chip" data-filter="new" aria-pressed="true">Nur neue</button>
-        <button class="chip" data-filter="all" aria-pressed="false">Alle</button>
+      <input type="search" id="artSearch" class="search-box" placeholder="Suche nach Name oder Nummer…" autocomplete="off" inputmode="search">
+
+      <div class="filter-grid">
+        <select id="artDept" aria-label="Warengruppe"></select>
+        <select id="artSort" aria-label="Sortierung">
+          <option value="seq">Neueste zuerst</option>
+          <option value="name">Name A–Z</option>
+          <option value="code">Nummer</option>
+          <option value="price">Preis aufsteigend</option>
+          <option value="priceDesc">Preis absteigend</option>
+          <option value="dept">Warengruppe</option>
+        </select>
       </div>
+
+      <div class="chips" role="group" aria-label="Filter">
+        <button class="chip" data-filter="all" aria-pressed="true">Alle</button>
+        <button class="chip" data-filter="new" aria-pressed="false">Nur neue</button>
+      </div>
+
+      <p class="list-count" id="listCount"></p>
       <div class="list" id="articleList"></div>
+      <button class="btn btn-outline btn-block" id="loadMoreBtn" hidden>Mehr anzeigen</button>
     </section>
 
     <!-- ============ STAMMDATEN HUB ============ -->
@@ -1717,11 +1770,17 @@ const fdb = initializeFirestore(fbApp, {
     units: [],
     staff: [],
     company: null,
-    listFilter: "new",
+    listFilter: "all",
+    artSearch: "",
+    artDept: "",      // "" = alle Warengruppen
+    artSort: "seq",
+    listLimit: 150,   // wie viele Artikel auf einmal angezeigt werden
     // Der Import der Kasse löscht je Rubrik alles und legt es neu an
     // (Delta-A DCO, Technische Anleitung 2.3, Abschnitt 9.6).
     exportScope: "all"
   };
+
+  var LIST_PAGE = 150;
 
   var draft = null;
   var editId = null;
@@ -2322,56 +2381,122 @@ const fdb = initializeFirestore(fbApp, {
     $("countPill").textContent = newArticles().length + " neu";
   }
 
+  // Warengruppen-Filter füllen (nur die, in denen es Artikel gibt, plus "Alle").
+  function buildDeptFilter() {
+    var sel = $("artDept");
+    if (!sel) return;
+    var cur = state.artDept;
+    sel.textContent = "";
+    var all = document.createElement("option");
+    all.value = ""; all.textContent = "Alle Warengruppen";
+    sel.appendChild(all);
+    state.depts.slice().sort(function (a, b) { return (a.Id || 0) - (b.Id || 0); }).forEach(function (d) {
+      var o = document.createElement("option");
+      o.value = String(d.Id);
+      o.textContent = d.name;
+      if (String(d.Id) === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  // Aktuelle Artikelliste nach Filter/Suche/Sortierung.
+  function filteredArticles() {
+    var rows = state.listFilter === "new" ? newArticles() : state.articles.slice();
+
+    if (state.artDept) {
+      var did = parseInt(state.artDept, 10);
+      rows = rows.filter(function (a) { return a.DepartmentId === did; });
+    }
+
+    var q = state.artSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(function (a) {
+        return (a.text || "").toLowerCase().indexOf(q) !== -1 ||
+          String(a.code || "").toLowerCase().indexOf(q) !== -1;
+      });
+    }
+
+    var s = state.artSort;
+    rows.sort(function (a, b) {
+      if (s === "name") return (a.text || "").localeCompare(b.text || "", "de");
+      if (s === "code") return (parseInt(a.code, 10) || 0) - (parseInt(b.code, 10) || 0) || String(a.code).localeCompare(String(b.code));
+      if (s === "price") return (parseNum(a.sell) || 0) - (parseNum(b.sell) || 0);
+      if (s === "priceDesc") return (parseNum(b.sell) || 0) - (parseNum(a.sell) || 0);
+      if (s === "dept") {
+        var da = deptById(a.DepartmentId), db2 = deptById(b.DepartmentId);
+        return (da ? da.name : "").localeCompare(db2 ? db2.name : "", "de") ||
+          (b.seq || 0) - (a.seq || 0);
+      }
+      return (b.seq || 0) - (a.seq || 0); // seq: neueste zuerst
+    });
+    return rows;
+  }
+
   function renderList() {
     var wrap = $("articleList");
-    var rows = state.listFilter === "new" ? newArticles() : state.articles;
+    if (!wrap) return;
+    var rows = filteredArticles();
+    var total = rows.length;
+    var shown = Math.min(state.listLimit, total);
 
-    if (!rows.length) {
+    $("loadMoreBtn").hidden = total <= shown;
+    var cnt = $("listCount");
+    if (cnt) {
+      cnt.textContent = total === 0 ? "" :
+        (total <= shown ? total + " Artikel" : "Zeige " + shown + " von " + total + " Artikeln");
+    }
+
+    if (!total) {
+      var hat = state.articles.length > 0;
       wrap.innerHTML = '<p class="empty">' +
-        (state.listFilter === "new"
-          ? "Noch keine neuen Artikel.<br>Scanne einen Barcode, um anzufangen."
-          : "Keine Artikel vorhanden.") +
+        (hat ? "Kein Artikel passt zur Suche/zum Filter."
+             : "Noch keine Artikel.<br>Scanne einen Barcode, um anzufangen.") +
         "</p>";
       return;
     }
 
+    // Nur den sichtbaren Ausschnitt zeichnen — nicht tausende auf einmal.
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < shown; i++) {
+      (function (a) {
+        var d = deptById(a.DepartmentId);
+        var btn = document.createElement("button");
+        btn.className = "item";
+        btn.type = "button";
+
+        var name = document.createElement("div");
+        name.className = "item-name";
+        name.textContent = a.text || "(ohne Name)";
+        if (a.isNew) {
+          var b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "neu";
+          name.appendChild(b);
+        }
+
+        var meta = document.createElement("div");
+        meta.className = "item-meta";
+        meta.textContent = (a.hasBarcode ? a.code : "PLU " + a.code) +
+          " · " + (d ? d.name : "?") +
+          " · " + unitLabel(a.unitId) +
+          " · " + taxById(a.taxId).label.replace(/\s/g, "") +
+          (a.isDeposit ? " · Pfand" : "") +
+          (a.hasImage ? " · Foto" : "");
+
+        var price = document.createElement("div");
+        price.className = "item-price";
+        var g = parseNum(a.sell);
+        price.textContent = (isNaN(g) ? "—" : de(g) + " €");
+
+        btn.appendChild(name);
+        btn.appendChild(price);
+        btn.appendChild(meta);
+        btn.addEventListener("click", function () { openSheet(a); });
+        frag.appendChild(btn);
+      })(rows[i]);
+    }
     wrap.textContent = "";
-    rows.forEach(function (a) {
-      var d = deptById(a.DepartmentId);
-      var btn = document.createElement("button");
-      btn.className = "item";
-      btn.type = "button";
-
-      var name = document.createElement("div");
-      name.className = "item-name";
-      name.textContent = a.text || "(ohne Name)";
-      if (a.isNew) {
-        var b = document.createElement("span");
-        b.className = "badge";
-        b.textContent = "neu";
-        name.appendChild(b);
-      }
-
-      var meta = document.createElement("div");
-      meta.className = "item-meta";
-      meta.textContent = (a.hasBarcode ? a.code : "PLU " + a.code) +
-        " · " + (d ? d.name : "?") +
-        " · " + taxById(a.taxId).label.replace(/\s/g, "") +
-        (a.unitId !== 1 ? " · " + unitLabel(a.unitId) : "") +
-        (a.isDeposit ? " · Pfand" : "") +
-        (a.hasImage ? " · Foto" : "");
-
-      var price = document.createElement("div");
-      price.className = "item-price";
-      var g = parseNum(a.sell);
-      price.textContent = (isNaN(g) ? "—" : de(g) + " €");
-
-      btn.appendChild(name);
-      btn.appendChild(price);
-      btn.appendChild(meta);
-      btn.addEventListener("click", function () { openSheet(a); });
-      wrap.appendChild(btn);
-    });
+    wrap.appendChild(frag);
   }
 
   function listRow(wrap, title, sub, onClick) {
@@ -2575,6 +2700,7 @@ const fdb = initializeFirestore(fbApp, {
 
   function renderAll() {
     renderCount();
+    buildDeptFilter();
     renderList();
     renderGroups();
     renderDepts();
@@ -3225,8 +3351,32 @@ const fdb = initializeFirestore(fbApp, {
       document.querySelectorAll("[data-filter]").forEach(function (x) {
         x.setAttribute("aria-pressed", String(x === b));
       });
+      state.listLimit = LIST_PAGE;
       renderList();
     });
+  });
+
+  // Suche, Warengruppen-Filter, Sortierung.
+  var searchTimer = null;
+  $("artSearch").addEventListener("input", function () {
+    state.artSearch = this.value;
+    state.listLimit = LIST_PAGE;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderList, 150);
+  });
+  $("artDept").addEventListener("change", function () {
+    state.artDept = this.value;
+    state.listLimit = LIST_PAGE;
+    renderList();
+  });
+  $("artSort").addEventListener("change", function () {
+    state.artSort = this.value;
+    state.listLimit = LIST_PAGE;
+    renderList();
+  });
+  $("loadMoreBtn").addEventListener("click", function () {
+    state.listLimit += LIST_PAGE;
+    renderList();
   });
 
   document.querySelectorAll("[data-scope]").forEach(function (b) {
