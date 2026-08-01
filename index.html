@@ -286,6 +286,11 @@
     color: var(--ink-2);
   }
 
+  .hint.hint-warn {
+    color: var(--warn-ink);
+    font-weight: 600;
+  }
+
   .hint strong {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
@@ -1258,6 +1263,7 @@
     <div class="field">
       <label for="fName">Text (Artikelname)</label>
       <input type="text" id="fName" autocomplete="off" placeholder="z. B. Snickers 50g">
+      <span class="hint" id="nameLookup" hidden></span>
     </div>
 
     <div class="field">
@@ -2826,13 +2832,27 @@ const fdb = initializeFirestore(fbApp, {
   }
 
   function updateNetHint() {
+    var el = $("netHint");
     var g = parseNum($("fPrice").value);
     var t = taxById(draft.taxId);
+    el.classList.remove("hint-warn");
     if (isNaN(g)) {
-      $("netHint").textContent = "Nur Ziffern tippen: „150“ wird 1,50 €. Netto rechnet die App aus.";
+      el.textContent = "Nur Ziffern tippen: „150“ wird 1,50 €. Netto rechnet die App aus.";
       return;
     }
-    $("netHint").innerHTML = "Netto bei " + t.label + ": <strong>" + de(netFromGross(g, draft.taxId)) + " €</strong>";
+    // Sanfter Hinweis bei verdächtigem Preis (0 € oder Verkauf unter Einkauf).
+    var buy = parseNum($("fBuy") ? $("fBuy").value : draft.buy);
+    if (g === 0) {
+      el.textContent = "Achtung: Preis ist 0,00 € — richtig so?";
+      el.classList.add("hint-warn");
+      return;
+    }
+    if (!isNaN(buy) && buy > 0 && g < buy) {
+      el.textContent = "Achtung: Verkaufspreis (" + de(g) + " €) ist niedriger als der Einkauf (" + de(buy) + " €).";
+      el.classList.add("hint-warn");
+      return;
+    }
+    el.innerHTML = "Netto bei " + t.label + ": <strong>" + de(netFromGross(g, draft.taxId)) + " €</strong>";
   }
 
   function updateDupWarn() {
@@ -2971,6 +2991,9 @@ const fdb = initializeFirestore(fbApp, {
     $("fDepositId").value = draft.depositId || "";
     $("fLimitVal").value = draft.priceLimit || "";
     $("fSupplement").value = draft.supplementId != null ? draft.supplementId : "0";
+
+    lookupSeq++;                 // laufende Namenssuche verwerfen
+    $("nameLookup").hidden = true;
 
     buildDeptChips();
     buildTaxChips();
@@ -3225,12 +3248,86 @@ const fdb = initializeFirestore(fbApp, {
     var existing = findByCode(code, null);
     if (existing) {
       openSheet(existing);
-      toast("Artikel ist schon angelegt");
+      // Preis-Schnellbearbeitung: der Artikel gibt es schon, also gleich ans
+      // Preisfeld springen.
+      focusPrice();
+      toast("Artikel gibt es schon — Preis ändern und speichern", 3500);
       return;
     }
 
     draft = blankDraft(code, true);
     openSheet(null);
+    lookupProductName(code);
+  }
+
+  function focusPrice() {
+    setTimeout(function () {
+      var p = $("fPrice");
+      if (p) { p.focus(); if (p.select) p.select(); }
+    }, 120);
+  }
+
+  /* ---------- Produktname automatisch aus Open Food Facts ----------
+     Ändert NICHTS an der Speicherung: füllt nur das Namensfeld vor, wenn es
+     leer ist. Der Name kann jederzeit von Hand überschrieben werden. */
+
+  var lookupSeq = 0;
+
+  function lookupProductName(code) {
+    var el = $("nameLookup");
+    // Nur bei echten Barcodes (EAN/UPC, 8–14 Ziffern), nicht bei kurzen PLU.
+    if (!/^\d{8,14}$/.test(code)) { if (el) el.hidden = true; return; }
+    // Ein bereits eingetippter Name wird nie überschrieben.
+    if ($("fName").value.trim()) { if (el) el.hidden = true; return; }
+
+    var mySeq = ++lookupSeq;
+    if (el) { el.hidden = false; el.textContent = "Suche Produktname…"; }
+
+    var url = "https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) +
+      ".json?fields=product_name,product_name_de,brands,quantity";
+
+    // 6 Sekunden Zeitlimit, danach still aufgeben.
+    var ctrl = ("AbortController" in window) ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 6000);
+
+    fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        clearTimeout(timer);
+        // Zwischenzeitlich anderes Formular/anderer Code: Ergebnis verwerfen.
+        if (mySeq !== lookupSeq || !draft || draft.code !== code) return;
+        if (!$("nameLookup")) return;
+
+        var name = buildProductName(data);
+        if (name && !$("fName").value.trim()) {
+          $("fName").value = name;
+          if (draft) draft.text = name;
+          persistDraft();
+          updateDupWarn();
+          $("nameLookup").textContent = "Name aus Produktdatenbank — bei Bedarf ändern.";
+          focusPrice();
+        } else {
+          $("nameLookup").hidden = true;
+        }
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        if (mySeq === lookupSeq && $("nameLookup")) $("nameLookup").hidden = true;
+      });
+  }
+
+  function buildProductName(data) {
+    if (!data || data.status === 0 || !data.product) return null;
+    var p = data.product;
+    var name = (p.product_name_de || p.product_name || "").trim();
+    if (!name) return null;
+    var brand = (p.brands || "").split(",")[0].trim();
+    // Marke voranstellen, wenn nicht schon im Namen enthalten.
+    if (brand && name.toLowerCase().indexOf(brand.toLowerCase()) === -1) name = brand + " " + name;
+    if (p.quantity && name.toLowerCase().indexOf(String(p.quantity).toLowerCase()) === -1) {
+      name = name + " " + p.quantity;
+    }
+    return name.replace(/\s+/g, " ").trim().slice(0, 60);
   }
 
   /* ---------- Views ---------- */
@@ -3299,6 +3396,8 @@ const fdb = initializeFirestore(fbApp, {
       updateDupWarn();
       renderThumb();
       persistDraft();
+      // Bei einem neuen Barcode-Artikel den Namen automatisch suchen.
+      if (!editId && draft.hasBarcode) lookupProductName(next);
     });
   });
 
@@ -3356,7 +3455,7 @@ const fdb = initializeFirestore(fbApp, {
   }
 
   $("fPrice").addEventListener("input", function () { cashFormat(this); updateNetHint(); });
-  $("fBuy").addEventListener("input", function () { cashFormat(this); });
+  $("fBuy").addEventListener("input", function () { cashFormat(this); updateNetHint(); });
 
   // Alle Schalter der Artikelmaske.
   function bindToggle(id, key, extra) {
