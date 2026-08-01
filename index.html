@@ -3321,13 +3321,15 @@ const fdb = initializeFirestore(fbApp, {
     var p = data.product;
     var name = (p.product_name_de || p.product_name || "").trim();
     if (!name) return null;
-    var brand = (p.brands || "").split(",")[0].trim();
-    // Marke voranstellen, wenn nicht schon im Namen enthalten.
-    if (brand && name.toLowerCase().indexOf(brand.toLowerCase()) === -1) name = brand + " " + name;
-    if (p.quantity && name.toLowerCase().indexOf(String(p.quantity).toLowerCase()) === -1) {
-      name = name + " " + p.quantity;
+    // Kurzer, sauberer Kassenname: keine Muttergesellschaft, keine Menge,
+    // Mehrfach-Leerzeichen weg, auf ~40 Zeichen an der Wortgrenze kürzen.
+    name = name.replace(/\s+/g, " ").trim();
+    if (name.length > 40) {
+      var cut = name.slice(0, 40);
+      var sp = cut.lastIndexOf(" ");
+      name = (sp > 18 ? cut.slice(0, sp) : cut).trim();
     }
-    return name.replace(/\s+/g, " ").trim().slice(0, 60);
+    return name;
   }
 
   /* ---------- Views ---------- */
