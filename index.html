@@ -1085,6 +1085,7 @@
           <option value="price">Preis aufsteigend</option>
           <option value="priceDesc">Preis absteigend</option>
           <option value="dept">Warengruppe</option>
+          <option value="unit">Einheit</option>
         </select>
       </div>
 
@@ -1407,6 +1408,11 @@
     <button class="icon-btn" data-close="deptSheet" aria-label="Schließen">✕</button>
   </div>
   <div class="sheet-body">
+    <div class="field">
+      <label for="dId">ID (Nummer der Warengruppe)</label>
+      <input type="text" id="dId" class="mono" inputmode="numeric" autocomplete="off">
+      <span class="hint">Muss eindeutig sein. Änderst du die ID einer vorhandenen Warengruppe, werden die Artikel darin automatisch mit umgehängt.</span>
+    </div>
     <div class="field">
       <label for="dGroup">Gruppe (Überkategorie)</label>
       <select id="dGroup"></select>
@@ -2445,6 +2451,10 @@ const fdb = initializeFirestore(fbApp, {
         var da = deptById(a.DepartmentId), db2 = deptById(b.DepartmentId);
         return (da ? da.name : "").localeCompare(db2 ? db2.name : "", "de") ||
           (b.seq || 0) - (a.seq || 0);
+      }
+      if (s === "unit") {
+        return unitLabel(a.unitId).localeCompare(unitLabel(b.unitId), "de") ||
+          (a.text || "").localeCompare(b.text || "", "de");
       }
       return (b.seq || 0) - (a.seq || 0); // seq: neueste zuerst
     });
@@ -3736,6 +3746,7 @@ const fdb = initializeFirestore(fbApp, {
     dEditId = d ? d._id : null;
     $("deptSheetTitle").textContent = d ? "Warengruppe bearbeiten" : "Neue Warengruppe";
     $("dDeleteBtn").hidden = !d;
+    $("dId").value = d ? d.Id : nextId(state.depts);
     fillGroupSelect($("dGroup"), d ? d.GroupId : state.groups[0].Id);
     $("dName").value = d ? d.name : "";
     dDraftTax = d && d.primaryTaxId ? d.primaryTaxId : 0;
@@ -3753,18 +3764,39 @@ const fdb = initializeFirestore(fbApp, {
     if (!name) { toast("Bitte einen Namen eingeben"); return; }
     var groupId = parseInt($("dGroup").value, 10);
 
-    var existing = dEditId ? state.depts.filter(function (x) { return x._id === dEditId; })[0] : null;
-    var id = existing ? existing.Id : nextId(state.depts);
+    var newId = parseInt($("dId").value, 10);
+    if (!newId || newId < 1) { toast("Bitte eine gültige ID (Zahl größer 0)"); $("dId").focus(); return; }
 
-    dPicker.commit(deptImgKey(id)).then(function (hasImg) {
+    var existing = dEditId ? state.depts.filter(function (x) { return x._id === dEditId; })[0] : null;
+    var oldId = existing ? existing.Id : null;
+
+    // ID muss eindeutig sein.
+    var clash = state.depts.filter(function (x) { return x._id !== dEditId && x.Id === newId; })[0];
+    if (clash) { toast("ID " + newId + " ist schon von „" + clash.name + "“ vergeben"); $("dId").focus(); return; }
+
+    dPicker.commit(deptImgKey(newId)).then(function (hasImg) {
       var payload = {
-        GroupId: groupId, name: name, ToGo: swOn("dToGo") ? 1 : 0,
+        Id: newId, GroupId: groupId, name: name, ToGo: swOn("dToGo") ? 1 : 0,
         primaryTaxId: dDraftTax, visible: swOn("dVisible"), hasImage: !!hasImg
       };
-      if (dEditId) return updateDoc(doc(fdb, "departments", dEditId), payload);
-      payload.Id = id;
-      payload.seq = Date.now();
-      return addDoc(collection(fdb, "departments"), payload);
+      if (!dEditId) {
+        payload.seq = Date.now();
+        return addDoc(collection(fdb, "departments"), payload);
+      }
+      var chain = updateDoc(doc(fdb, "departments", dEditId), payload);
+      // ID geändert → alle Artikel dieser Warengruppe mit umhängen, damit die
+      // Verknüpfung nicht abreißt.
+      if (oldId != null && oldId !== newId) {
+        var betroffen = state.articles.filter(function (a) { return a.DepartmentId === oldId; });
+        if (betroffen.length) {
+          chain = chain.then(function () {
+            var batch = writeBatch(fdb);
+            betroffen.forEach(function (a) { batch.update(doc(fdb, "articles", a._id), { DepartmentId: newId }); });
+            return batch.commit();
+          });
+        }
+      }
+      return chain;
     }).then(function () {
       toast("Warengruppe gespeichert");
     }).catch(fbWriteError);
