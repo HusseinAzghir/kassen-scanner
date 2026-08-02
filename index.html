@@ -1335,12 +1335,13 @@
     </div>
 
     <div class="toggle-row">
-      <span>Pfandartikel</span>
+      <span>Pfandartikel (dieser Artikel <em>ist</em> ein Pfand)</span>
       <button class="switch" id="fDeposit" aria-pressed="false" aria-label="Pfandartikel"></button>
     </div>
-    <div class="field" id="depositField" hidden>
-      <label for="fDepositId">Pfand-ID (deposit_id)</label>
-      <input type="text" id="fDepositId" class="mono" placeholder="leer lassen, wenn unbekannt" autocomplete="off">
+    <div class="field" id="depositSelectField">
+      <label for="fDepositId">Pfand</label>
+      <select id="fDepositId"></select>
+      <span class="hint">Bei Getränken usw. hier das passende Pfand wählen — es wird an der Kasse dazugerechnet. Ein Pfand selbst legst du als eigenen Artikel an (Warengruppe „Pfand Bezahlen“) und schaltest dort oben „Pfandartikel“ ein.</span>
     </div>
 
     <details>
@@ -2828,8 +2829,40 @@ const fdb = initializeFirestore(fbApp, {
 
     $("limitField").hidden = !draft.isPriceLimitCheck;
     $("tareField").hidden = !draft.isScale;
-    $("depositField").hidden = !draft.isDeposit;
+    // Pfand-Auswahl gehört auf normale Artikel (Getränke) — NICHT auf einen
+    // Artikel, der selbst ein Pfand ist.
+    $("depositSelectField").hidden = !!draft.isDeposit;
     $("codeLabel").textContent = draft.hasBarcode ? "EAN-Code" : "PLU-Nr";
+  }
+
+  // Pfand-Dropdown mit allen Pfand-Artikeln (isDeposit=X) füllen.
+  function buildDepositOptions() {
+    var sel = $("fDepositId");
+    if (!sel) return;
+    var cur = draft ? String(draft.depositId || "") : "";
+    sel.textContent = "";
+    var none = document.createElement("option");
+    none.value = ""; none.textContent = "— kein Pfand —";
+    sel.appendChild(none);
+    var found = false;
+    state.articles.forEach(function (a) {
+      if (!a.isDeposit) return;
+      if (editId && a._id === editId) return;   // sich selbst nicht anbieten
+      var o = document.createElement("option");
+      o.value = String(a.code);
+      var g = parseNum(a.sell);
+      o.textContent = (a.text || "Pfand") + (isNaN(g) ? "" : " (" + de(g) + " €)");
+      if (String(a.code) === cur) found = true;
+      sel.appendChild(o);
+    });
+    // Gespeicherte Pfand-Nummer behalten, auch wenn der Pfand-Artikel (noch)
+    // nicht in der Liste ist.
+    if (cur && !found) {
+      var o2 = document.createElement("option");
+      o2.value = cur; o2.textContent = "Nummer " + cur;
+      sel.appendChild(o2);
+    }
+    sel.value = cur;
   }
 
   function updateNetHint() {
@@ -2989,7 +3022,7 @@ const fdb = initializeFirestore(fbApp, {
     $("fPrice").value = draft.sell;
     $("fBuy").value = draft.buy || "0,00";
     $("fTare").value = draft.tare || "0.0";
-    $("fDepositId").value = draft.depositId || "";
+    buildDepositOptions();
     $("fLimitVal").value = draft.priceLimit || "";
     $("fSupplement").value = draft.supplementId != null ? draft.supplementId : "0";
 
@@ -3493,6 +3526,8 @@ const fdb = initializeFirestore(fbApp, {
   });
   // Name live auf Dubletten prüfen (sperrt Speichern wie bei der Nummer).
   $("fName").addEventListener("input", updateDupWarn);
+  // Pfand-Auswahl (select) feuert "change".
+  $("fDepositId").addEventListener("change", persistDraft);
   $("photoInput").addEventListener("click", persistDraft);
   $("galleryInput").addEventListener("click", persistDraft);
 
