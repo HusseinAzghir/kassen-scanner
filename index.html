@@ -548,6 +548,9 @@
     gap: 8px;
   }
 
+  /* Warengruppe + Einheit nebeneinander, Sortierung darunter über volle Breite */
+  .filter-grid #artSort { grid-column: 1 / -1; }
+
   .filter-grid select {
     width: 100%;
     font-family: inherit;
@@ -1078,6 +1081,7 @@
 
       <div class="filter-grid">
         <select id="artDept" aria-label="Warengruppe"></select>
+        <select id="artUnit" aria-label="Einheit"></select>
         <select id="artSort" aria-label="Sortierung">
           <option value="seq">Neueste zuerst</option>
           <option value="name">Name A–Z</option>
@@ -1787,6 +1791,7 @@ const fdb = initializeFirestore(fbApp, {
     listFilter: "all",
     artSearch: "",
     artDept: "",      // "" = alle Warengruppen
+    artUnit: "",      // "" = alle Einheiten
     artSort: "seq",
     listLimit: 150,   // wie viele Artikel auf einmal angezeigt werden
     // Der Import der Kasse löscht je Rubrik alles und legt es neu an
@@ -2424,6 +2429,24 @@ const fdb = initializeFirestore(fbApp, {
     });
   }
 
+  // Einheiten-Filter füllen (alle Einheiten aus den Einstellungen + "Alle").
+  function buildUnitFilter() {
+    var sel = $("artUnit");
+    if (!sel) return;
+    var cur = state.artUnit;
+    sel.textContent = "";
+    var all = document.createElement("option");
+    all.value = ""; all.textContent = "Alle Einheiten";
+    sel.appendChild(all);
+    state.units.forEach(function (u) {
+      var o = document.createElement("option");
+      o.value = String(u.unitId);
+      o.textContent = u.name;
+      if (String(u.unitId) === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
   // Aktuelle Artikelliste nach Filter/Suche/Sortierung.
   function filteredArticles() {
     var rows = state.listFilter === "new" ? newArticles() : state.articles.slice();
@@ -2431,6 +2454,11 @@ const fdb = initializeFirestore(fbApp, {
     if (state.artDept) {
       var did = parseInt(state.artDept, 10);
       rows = rows.filter(function (a) { return a.DepartmentId === did; });
+    }
+
+    if (state.artUnit) {
+      var uid = parseInt(state.artUnit, 10);
+      rows = rows.filter(function (a) { return a.unitId === uid; });
     }
 
     var q = state.artSearch.trim().toLowerCase();
@@ -2730,6 +2758,7 @@ const fdb = initializeFirestore(fbApp, {
   function renderAll() {
     renderCount();
     buildDeptFilter();
+    buildUnitFilter();
     renderList();
     renderGroups();
     renderDepts();
@@ -3562,6 +3591,11 @@ const fdb = initializeFirestore(fbApp, {
   });
   $("artDept").addEventListener("change", function () {
     state.artDept = this.value;
+    state.listLimit = LIST_PAGE;
+    renderList();
+  });
+  $("artUnit").addEventListener("change", function () {
+    state.artUnit = this.value;
     state.listLimit = LIST_PAGE;
     renderList();
   });
