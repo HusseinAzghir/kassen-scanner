@@ -1416,7 +1416,7 @@
       <input type="text" id="dName" autocomplete="off" placeholder="z. B. Süßigkeiten">
     </div>
     <div class="field">
-      <label>Primäre Steuer (Vorgabe für Artikel)</label>
+      <label>Primäre Steuer <span class="hint" style="font-weight:400">(optional — Vorgabe für neue Artikel)</span></label>
       <div class="chips" id="dTaxChips" role="group" aria-label="Primäre Steuer"></div>
     </div>
     <div class="toggle-row">
@@ -3693,10 +3693,18 @@ const fdb = initializeFirestore(fbApp, {
 
   /* ---------- WARENGRUPPE (Untergruppe) ---------- */
   var dEditId = null;
-  var dDraftTax = 1;
+  var dDraftTax = 0;   // 0 = keine Vorgabe-Steuer (optional)
 
   function buildTaxChipsInto(wrap, current, onPick) {
     wrap.textContent = "";
+    // "keine" = keine Vorgabe-Steuer (darf leer bleiben, wie an der Kasse).
+    var none = document.createElement("button");
+    none.className = "chip";
+    none.type = "button";
+    none.textContent = "keine";
+    none.setAttribute("aria-pressed", String(!current));
+    none.addEventListener("click", function () { onPick(0); });
+    wrap.appendChild(none);
     TAXES.forEach(function (t) {
       var b = document.createElement("button");
       b.className = "chip mono";
@@ -3730,7 +3738,7 @@ const fdb = initializeFirestore(fbApp, {
     $("dDeleteBtn").hidden = !d;
     fillGroupSelect($("dGroup"), d ? d.GroupId : state.groups[0].Id);
     $("dName").value = d ? d.name : "";
-    dDraftTax = d && d.primaryTaxId ? d.primaryTaxId : 1;
+    dDraftTax = d && d.primaryTaxId ? d.primaryTaxId : 0;
     renderDeptTax();
     sw("dToGo", d ? !!d.ToGo : false);
     sw("dVisible", d ? d.visible !== false : true);
