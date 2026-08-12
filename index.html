@@ -1385,19 +1385,6 @@
       <span>Ist sichtbar</span>
       <button class="switch" id="gVisible" aria-pressed="true" aria-label="Sichtbar"></button>
     </div>
-    <div class="field">
-      <label>Bild</label>
-      <div class="photo-row">
-        <div class="thumb" id="gThumb" data-empty="true"></div>
-        <div class="photo-actions">
-          <input type="file" id="gPhotoInput" accept="image/*" capture="environment" hidden>
-          <label class="btn btn-outline" for="gPhotoInput">Foto aufnehmen</label>
-          <input type="file" id="gGalleryInput" accept="image/*" hidden>
-          <label class="btn btn-outline" for="gGalleryInput">Aus Galerie wählen</label>
-          <button class="btn btn-danger" id="gPhotoDel" hidden>Bild entfernen</button>
-        </div>
-      </div>
-    </div>
   </div>
   <div class="sheet-foot">
     <button class="btn btn-danger" id="gDeleteBtn" hidden>Löschen</button>
@@ -1436,19 +1423,6 @@
     <div class="toggle-row">
       <span>Ist sichtbar</span>
       <button class="switch" id="dVisible" aria-pressed="true" aria-label="Sichtbar"></button>
-    </div>
-    <div class="field">
-      <label>Bild</label>
-      <div class="photo-row">
-        <div class="thumb" id="dThumb" data-empty="true"></div>
-        <div class="photo-actions">
-          <input type="file" id="dPhotoInput" accept="image/*" capture="environment" hidden>
-          <label class="btn btn-outline" for="dPhotoInput">Foto aufnehmen</label>
-          <input type="file" id="dGalleryInput" accept="image/*" hidden>
-          <label class="btn btn-outline" for="dGalleryInput">Aus Galerie wählen</label>
-          <button class="btn btn-danger" id="dPhotoDel" hidden>Bild entfernen</button>
-        </div>
-      </div>
     </div>
   </div>
   <div class="sheet-foot">
@@ -1674,6 +1648,36 @@ const fdb = initializeFirestore(fbApp, {
     return deleteDoc(doc(fdb, "images", key)).catch(function () {});
   }
 
+  // Aufräumen: Artikel, die als "hat Bild" markiert sind, deren Bild aber
+  // fehlt (früher entstanden tote Verweise), verlieren still das Häkchen.
+  // So verschwinden kaputte Vorschaubilder in der App. Am Export ändert das
+  // nichts — dort werden ohnehin nur wirklich vorhandene Bilder gelistet.
+  var imageHealDone = false;
+  function scheduleImageHeal() {
+    if (imageHealDone) return;
+    imageHealDone = true;
+    setTimeout(healBrokenImageFlags, 4000); // Oberfläche zuerst aufbauen lassen
+  }
+  function healBrokenImageFlags() {
+    var list = state.articles.filter(function (a) { return a.hasImage && a._id; });
+    var i = 0, fixed = 0;
+    function step() {
+      if (i >= list.length) {
+        if (fixed) toast(fixed + " Artikel ohne Bild bereinigt");
+        return;
+      }
+      var a = list[i++];
+      getImage(a.code).then(function (blob) {
+        if (blob) return;
+        fixed++;
+        return updateDoc(doc(fdb, "articles", a._id), { hasImage: false }).catch(function () {});
+      }).catch(function () {}).then(function () {
+        setTimeout(step, 40); // sanft, um Firestore nicht zu überlasten
+      });
+    }
+    step();
+  }
+
   // Handyfotos sind 3–8 MB — das würde den Speicher sprengen und den
   // Import verlangsamen. Auf Kachelgröße herunterrechnen.
   function shrink(file) {
@@ -1863,7 +1867,7 @@ const fdb = initializeFirestore(fbApp, {
       state.depts = arr;
       if (draft) buildDeptChips();
     });
-    collSnap("articles", function (a, b) { return (a.seq || 0) - (b.seq || 0); }, function (arr) { state.articles = arr; });
+    collSnap("articles", function (a, b) { return (a.seq || 0) - (b.seq || 0); }, function (arr) { state.articles = arr; scheduleImageHeal(); });
     collSnap("staff", function (a, b) { return (a.seq || 0) - (b.seq || 0); }, function (arr) { state.staff = arr; });
 
     unsubs.push(onSnapshot(doc(fdb, "meta", "units"), function (d) {
@@ -3617,61 +3621,20 @@ const fdb = initializeFirestore(fbApp, {
   function swOn(id) { return $(id).getAttribute("aria-pressed") === "true"; }
   bindSwitch("gVisible"); bindSwitch("dToGo"); bindSwitch("dVisible");
 
-  /* ---------- Bild-Auswahl für Gruppe/Warengruppe ----------
-     Das Bild wird erst beim Speichern endgültig abgelegt, weil eine neu
-     angelegte Gruppe ihre Nummer erst in dem Moment bekommt. */
-  function makeImagePicker(thumbId, camId, galId, delId) {
-    var pending = null, has = false, removed = false, url = null;
-
-    function paint(blob) {
-      var el = $(thumbId);
-      if (url) { URL.revokeObjectURL(url); url = null; }
-      if (!blob) {
-        el.style.backgroundImage = "";
-        el.setAttribute("data-empty", "true");
-        $(delId).hidden = true;
-        return;
-      }
-      url = URL.createObjectURL(blob);
-      el.style.backgroundImage = 'url("' + url + '")';
-      el.setAttribute("data-empty", "false");
-      $(delId).hidden = false;
-    }
-
-    function pick(e) {
-      var f = e.target.files && e.target.files[0];
-      e.target.value = "";
-      if (!f) return;
-      shrink(f).then(function (blob) {
-        pending = blob; has = true; removed = false;
-        paint(blob);
-        toast("Bild übernommen");
-      }).catch(function (err) { toast(err.message || "Bild konnte nicht verarbeitet werden"); });
-    }
-
-    $(camId).addEventListener("change", pick);
-    $(galId).addEventListener("change", pick);
-    $(delId).addEventListener("click", function () {
-      pending = null; has = false; removed = true;
-      paint(null);
-    });
-
+  // Gruppen/Warengruppen haben in der Kasse keine eigenen Bilder (die Images.csv
+  // kennt nur Artikel, article_type_id=0). Frühere Gruppenbilder landeten auf dem
+  // Artikel mit gleicher Nummer. Darum gibt es hier keine Bild-Auswahl mehr —
+  // dieser Platzhalter hält nur den vorhandenen hasImage-Wert, damit der übrige
+  // Speicher-Code unverändert weiterläuft.
+  function noopPicker() {
+    var has = false;
     return {
-      load: function (key, hasImage) {
-        pending = null; removed = false; has = !!hasImage;
-        paint(null);
-        if (key && hasImage) getImage(key).then(function (b) { if (b) paint(b); });
-      },
-      commit: function (key) {
-        if (pending) return putImage(key, pending).then(function () { return true; });
-        if (removed) return deleteImage(key).then(function () { return false; });
-        return Promise.resolve(has);
-      }
+      load: function (key, hasImage) { has = !!hasImage; },
+      commit: function () { return Promise.resolve(has); }
     };
   }
-
-  var gPicker = makeImagePicker("gThumb", "gPhotoInput", "gGalleryInput", "gPhotoDel");
-  var dPicker = makeImagePicker("dThumb", "dPhotoInput", "dGalleryInput", "dPhotoDel");
+  var gPicker = noopPicker();
+  var dPicker = noopPicker();
 
   function groupImgKey(id) { return "group_" + id; }
   function deptImgKey(id) { return "wgr_" + id; }
