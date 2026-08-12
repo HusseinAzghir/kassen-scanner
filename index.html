@@ -1615,7 +1615,6 @@ const fdb = initializeFirestore(fbApp, {
      ============================================================ */
 
   var IMAGE_DIR = "DeltaMasterDataImages";
-  var IMAGE_TYPE_ID = "0";
   var IMG_MAX_PX = 640;
   var IMG_QUALITY = 0.82;
 
@@ -2221,25 +2220,14 @@ const fdb = initializeFirestore(fbApp, {
     return clean(code).replace(/[^A-Za-z0-9_-]/g, "_") + ".jpg";
   }
 
-  // article_type_id unterscheidet die Bildarten. 0 = Artikel ist belegt; die
-  // Werte für Gruppe/Warengruppe sind geraten, weil die Images.csv im Backup
-  // leer war — nach dem Bilder-Test an der Kasse ggf. hier korrigieren.
-  var TYPE_GROUP = "1";
-  var TYPE_DEPT = "2";
-
+  // Nur Artikel-Bilder, article_type_id = 0, Dateiname = Nummer.jpg — exakt so,
+  // wie die Kasse Bilder verknüpft. (Der vollständige, konsistente Export läuft
+  // über buildZip; dort werden nur Bilder gelistet, deren Datei wirklich dabei ist.)
   function buildImagesCsv(rows) {
     var lines = ["article_no;image_uri;article_type_id"];
     rows.forEach(function (a) {
       if (!a.hasImage) return;
-      lines.push([clean(a.code), imageName(a.code), IMAGE_TYPE_ID].join(";"));
-    });
-    state.groups.forEach(function (g) {
-      if (!g.hasImage) return;
-      lines.push([g.Id, groupImgKey(g.Id) + ".jpg", TYPE_GROUP].join(";"));
-    });
-    state.depts.forEach(function (d) {
-      if (!d.hasImage) return;
-      lines.push([d.Id, deptImgKey(d.Id) + ".jpg", TYPE_DEPT].join(";"));
+      lines.push([clean(a.code), imageName(a.code), "0"].join(";"));
     });
     return lines.join("\n") + "\n";
   }
@@ -4034,7 +4022,6 @@ const fdb = initializeFirestore(fbApp, {
       { name: "Article.csv", bytes: enc.encode("﻿" + buildArticleCsv(rows)) },
       { name: "Department.csv", bytes: enc.encode("﻿" + buildDeptCsv()) },
       { name: "Group.csv", bytes: enc.encode("﻿" + buildGroupCsv()) },
-      { name: "Images.csv", bytes: enc.encode("﻿" + buildImagesCsv(rows)) },
       { name: "Staff.csv", bytes: enc.encode("﻿" + buildStaffCsv()) },
       { name: "CompanyInformation.csv", bytes: enc.encode("﻿" + buildCompanyCsv()) }
     ];
@@ -4046,27 +4033,29 @@ const fdb = initializeFirestore(fbApp, {
     // Der Bilderordner existiert im Kassen-Export immer, auch leer.
     entries.push({ name: IMAGE_DIR + "/", bytes: new Uint8Array(0) });
 
-    // Bilder von Artikeln, Gruppen und Warengruppen einsammeln.
-    var wanted = [];
-    rows.forEach(function (a) {
-      if (a.hasImage) wanted.push({ key: a.code, file: imageName(a.code) });
-    });
-    state.groups.forEach(function (g) {
-      if (g.hasImage) wanted.push({ key: groupImgKey(g.Id), file: groupImgKey(g.Id) + ".jpg" });
-    });
-    state.depts.forEach(function (d) {
-      if (d.hasImage) wanted.push({ key: deptImgKey(d.Id), file: deptImgKey(d.Id) + ".jpg" });
-    });
-
-    return Promise.all(wanted.map(function (w) {
-      return getImage(w.key).then(function (blob) {
+    // Nur ARTIKEL-Bilder, und nur die, deren Bild wirklich vorhanden ist.
+    // Die Kasse verknüpft Bilder ausschließlich über die Artikelnummer
+    // (article_type_id = 0, Dateiname = Nummer.jpg). Gruppen-/Warengruppen-
+    // bilder gibt es in diesem Format nicht — sie würden auf einem Artikel mit
+    // derselben Nummer landen, deshalb werden sie NICHT exportiert.
+    // Wichtig: Images.csv wird aus GENAU denselben Bildern gebaut, die auch als
+    // Datei mitkommen — so entstehen keine toten Verweise (verschwundene Bilder).
+    var withImg = rows.filter(function (a) { return a.hasImage; });
+    return Promise.all(withImg.map(function (a) {
+      return getImage(a.code).then(function (blob) {
         if (!blob) return null;
         return blob.arrayBuffer().then(function (buf) {
-          return { name: IMAGE_DIR + "/" + w.file, bytes: new Uint8Array(buf) };
+          return { code: a.code, bytes: new Uint8Array(buf) };
         });
+      }).catch(function () { return null; });
+    })).then(function (list) {
+      var imgs = list.filter(Boolean);
+      var lines = ["article_no;image_uri;article_type_id"];
+      imgs.forEach(function (im) {
+        lines.push([clean(im.code), imageName(im.code), "0"].join(";"));
+        entries.push({ name: IMAGE_DIR + "/" + imageName(im.code), bytes: im.bytes });
       });
-    })).then(function (imgs) {
-      imgs.forEach(function (e) { if (e) entries.push(e); });
+      entries.push({ name: "Images.csv", bytes: enc.encode("﻿" + lines.join("\n") + "\n") });
       return zip(entries);
     });
   }
