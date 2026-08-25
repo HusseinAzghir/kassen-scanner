@@ -1,0 +1,436 @@
+<title>Founder Transformation Retreat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --sand:#EEEADF;
+    --sand-2:#E5E0D2;
+    --paper:#F6F3EA;
+    --ink:#1E2A22;
+    --ink-soft:#3C463D;
+    --muted:#6E7568;
+    --line:#D6D0BF;
+    --olive:#5B6B41;
+    --olive-deep:#42502F;
+    --ember:#B4703A;
+    --card:#FBF9F2;
+    --shadow:0 1px 2px rgba(30,42,34,.05),0 12px 40px -18px rgba(30,42,34,.25);
+    --maxw:1120px;
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme: dark){
+      --sand:#161C17;
+      --sand-2:#1C231D;
+      --paper:#12170F;
+      --ink:#ECE7D7;
+      --ink-soft:#C7C4B4;
+      --muted:#8B9182;
+      --line:#2C3529;
+      --olive:#9FB07A;
+      --olive-deep:#B8C79A;
+      --ember:#D69256;
+      --card:#1A2019;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 20px 50px -22px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --sand:#161C17;--sand-2:#1C231D;--paper:#12170F;--ink:#ECE7D7;--ink-soft:#C7C4B4;
+    --muted:#8B9182;--line:#2C3529;--olive:#9FB07A;--olive-deep:#B8C79A;--ember:#D69256;
+    --card:#1A2019;--shadow:0 1px 2px rgba(0,0,0,.3),0 20px 50px -22px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Instrument Sans",system-ui,-apple-system,sans-serif;
+    font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;
+    text-underline-offset:3px;
+  }
+  h1,h2,h3{font-family:"Fraunces",Georgia,serif;font-weight:400;line-height:1.08;text-wrap:balance;margin:0;letter-spacing:-.01em}
+  p{margin:0}
+  a{color:inherit}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,5vw,48px)}
+  .eyebrow{
+    font-family:"Instrument Sans",sans-serif;font-size:.72rem;font-weight:600;
+    letter-spacing:.22em;text-transform:uppercase;color:var(--olive);margin:0 0 1.1rem
+  }
+  .lede{font-size:clamp(1.05rem,1.6vw,1.2rem);color:var(--ink-soft);max-width:60ch}
+
+  /* ---- top bar ---- */
+  header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 88%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:1rem}
+  .brand{font-family:"Fraunces",serif;font-size:1.12rem;letter-spacing:-.01em;display:flex;align-items:center;gap:.55rem}
+  .brand .leaf{width:22px;height:22px;color:var(--olive);flex:none}
+  .bar nav{display:flex;gap:1.6rem;font-size:.9rem;color:var(--muted)}
+  .bar nav a{text-decoration:none}
+  .bar nav a:hover{color:var(--ink)}
+  .bar .book{display:inline-flex;align-items:center;gap:.5rem;background:var(--ink);color:var(--paper);
+    text-decoration:none;font-size:.85rem;font-weight:600;padding:.55rem 1.05rem;border-radius:999px}
+  .bar .book:hover{background:var(--olive-deep)}
+  @media(max-width:820px){.bar nav{display:none}}
+
+  /* ---- hero ---- */
+  .hero{position:relative;overflow:hidden;padding:clamp(4.5rem,10vw,8rem) 0 clamp(3.5rem,7vw,6rem)}
+  .hero .wrap{position:relative;z-index:2}
+  .hero .kicker{display:inline-flex;align-items:center;gap:.6rem;font-size:.8rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;
+    padding:.4rem .9rem;margin-bottom:1.8rem}
+  .hero .kicker b{color:var(--olive);font-weight:600}
+  .hero h1{font-size:clamp(2.8rem,8.2vw,6.2rem);line-height:.96;letter-spacing:-.025em}
+  .hero h1 em{font-style:italic;color:var(--olive)}
+  .hero .sub{margin-top:1.6rem;font-size:clamp(1.15rem,2.4vw,1.55rem);font-family:"Fraunces",serif;
+    font-weight:300;color:var(--ink-soft);max-width:24ch;line-height:1.3}
+  .hero .facts{margin-top:2.6rem;display:flex;flex-wrap:wrap;gap:1.4rem 2.6rem;font-size:.95rem}
+  .hero .facts div{display:flex;flex-direction:column;gap:.15rem}
+  .hero .facts .k{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .hero .facts .v{font-family:"Fraunces",serif;font-size:1.15rem;color:var(--ink)}
+  .hero .cta{margin-top:2.8rem;display:flex;flex-wrap:wrap;gap:.9rem}
+  .btn{display:inline-flex;align-items:center;gap:.6rem;text-decoration:none;font-weight:600;font-size:.95rem;
+    padding:.85rem 1.5rem;border-radius:999px;transition:transform .15s ease,background .2s ease}
+  .btn.primary{background:var(--ember);color:#fff}
+  .btn.primary:hover{transform:translateY(-2px)}
+  .btn.ghost{border:1px solid var(--line);color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--olive);color:var(--olive)}
+  .hero .ridge{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.9}
+
+  /* ---- section frame ---- */
+  section{padding:clamp(3.8rem,8vw,7rem) 0;border-top:1px solid var(--line)}
+  .head{max-width:60ch;margin-bottom:3rem}
+  .head h2{font-size:clamp(2rem,4.4vw,3.1rem)}
+  .head p{margin-top:1rem;color:var(--ink-soft)}
+
+  /* pillars */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem}
+  .pillar{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:1.7rem 1.6rem;box-shadow:var(--shadow)}
+  .pillar .n{font-family:"Fraunces",serif;font-size:.95rem;color:var(--olive);border-bottom:1px solid var(--line);
+    padding-bottom:.9rem;margin-bottom:1rem;display:flex;align-items:baseline;justify-content:space-between}
+  .pillar h3{font-size:1.35rem;margin-bottom:.6rem}
+  .pillar p{color:var(--ink-soft);font-size:.96rem}
+  @media(max-width:760px){.pillars{grid-template-columns:1fr}}
+
+  .leave{margin-top:1.2rem;display:grid;grid-template-columns:1.1fr 1fr;gap:1.2rem;align-items:stretch}
+  .leave .box{background:var(--olive-deep);color:var(--paper);border-radius:18px;padding:2rem;display:flex;flex-direction:column;justify-content:center}
+  :root[data-theme="dark"] .leave .box,:root:not([data-theme="light"]) .leave .box{color:#12170F}
+  .leave .box h3{font-size:1.6rem;margin-bottom:.4rem;color:inherit}
+  .leave ul{list-style:none;margin:1rem 0 0;padding:0;display:flex;flex-direction:column;gap:.7rem}
+  .leave li{display:flex;gap:.7rem;align-items:flex-start;font-size:1rem}
+  .leave .box li{color:color-mix(in srgb,var(--paper) 92%,transparent)}
+  .tick{flex:none;width:20px;height:20px;margin-top:.15rem;color:var(--ember)}
+  .leave .box .tick{color:var(--ember)}
+  .leave .card2{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:2rem;box-shadow:var(--shadow)}
+  .leave .card2 h3{font-size:1.3rem;margin-bottom:.9rem}
+  @media(max-width:760px){.leave{grid-template-columns:1fr}}
+
+  /* rhythm timeline */
+  .rhythm{display:grid;grid-template-columns:auto 1fr;gap:0 1.6rem}
+  .slot{display:contents}
+  .slot .t{font-family:"Fraunces",serif;font-variant-numeric:tabular-nums;color:var(--olive);
+    font-size:1rem;padding:1.1rem 0;white-space:nowrap;text-align:right}
+  .slot .c{padding:1.1rem 0;border-bottom:1px solid var(--line);border-left:1px solid var(--line);
+    padding-left:1.6rem;position:relative}
+  .slot .c::before{content:"";position:absolute;left:-5px;top:1.5rem;width:9px;height:9px;border-radius:50%;
+    background:var(--paper);border:2px solid var(--olive)}
+  .slot:first-child .c{border-top:1px solid var(--line)}
+  .slot .c b{font-family:"Fraunces",serif;font-weight:500;font-size:1.12rem;display:block}
+  .slot .c span{color:var(--muted);font-size:.94rem}
+  .slot .c .tag{display:inline-block;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ember);margin-left:.5rem;vertical-align:middle}
+  @media(max-width:620px){
+    .rhythm{grid-template-columns:1fr}
+    .slot .t{text-align:left;padding:1rem 0 0}
+    .slot .c{border-left:none;padding-left:0}
+    .slot .c::before{display:none}
+    .slot:first-child .c{border-top:none}
+  }
+
+  /* days */
+  .days{display:grid;grid-template-columns:repeat(2,1fr);gap:1.2rem}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:1.9rem;box-shadow:var(--shadow);
+    display:flex;flex-direction:column}
+  .day .top{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:.2rem}
+  .day .dow{font-family:"Instrument Sans";font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--olive);font-weight:600}
+  .day h3{font-size:1.55rem;margin:.3rem 0 .3rem}
+  .day .motto{font-family:"Fraunces",serif;font-style:italic;font-weight:300;color:var(--muted);font-size:1.02rem;margin-bottom:1.2rem}
+  .day ul.focus{list-style:none;margin:0 0 1.3rem;padding:0;display:flex;flex-direction:column;gap:.55rem}
+  .day ul.focus li{font-size:.95rem;color:var(--ink-soft);padding-left:1.1rem;position:relative}
+  .day ul.focus li::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--olive)}
+  .day .sched{margin-top:auto;border-top:1px solid var(--line);padding-top:1.1rem;display:flex;flex-direction:column;gap:.5rem}
+  .day .sched .row{display:flex;gap:.9rem;font-size:.9rem}
+  .day .sched .row time{font-variant-numeric:tabular-nums;color:var(--olive);font-family:"Fraunces",serif;flex:none;width:3.4rem}
+  .day .sched .row span{color:var(--ink-soft)}
+  @media(max-width:760px){.days{grid-template-columns:1fr}}
+
+  /* practical */
+  .grid-practical{display:grid;grid-template-columns:1.2fr 1fr;gap:2.4rem}
+  @media(max-width:820px){.grid-practical{grid-template-columns:1fr;gap:1.6rem}}
+  .who{list-style:none;margin:1.4rem 0 0;padding:0;display:flex;flex-direction:column;gap:.9rem}
+  .who li{display:flex;gap:.75rem;align-items:flex-start;color:var(--ink-soft)}
+  .pricing{display:flex;flex-direction:column;gap:1rem}
+  .price{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem;display:flex;
+    align-items:center;justify-content:space-between;box-shadow:var(--shadow)}
+  .price.feature{border-color:var(--olive);background:var(--sand-2)}
+  .price .label{font-family:"Fraunces",serif;font-size:1.2rem}
+  .price .sub{font-size:.85rem;color:var(--muted)}
+  .price .amt{font-family:"Fraunces",serif;font-size:1.8rem;color:var(--ink)}
+  .price .amt small{font-size:.8rem;color:var(--muted);font-family:"Instrument Sans"}
+  .deposit{margin-top:.4rem;font-size:.9rem;color:var(--muted);display:flex;gap:.55rem;align-items:flex-start}
+
+  /* closing CTA */
+  .closing{background:var(--ink);color:var(--paper);border-top:none}
+  .closing .wrap{text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.4rem}
+  .closing h2{font-size:clamp(2.2rem,5vw,3.6rem);color:var(--paper)}
+  .closing h2 em{font-style:italic;color:var(--olive)}
+  :root:not([data-theme="light"]) .closing h2 em{color:var(--olive)}
+  .closing p{color:color-mix(in srgb,var(--paper) 78%,transparent);max-width:52ch}
+
+  footer.site{background:var(--sand);border-top:1px solid var(--line);padding:2.6rem 0}
+  footer.site .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.2rem;align-items:center;color:var(--muted);font-size:.9rem}
+  footer.site .brand{color:var(--ink)}
+
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">
+      <svg class="leaf" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21c0-6 3-11 9-13-1 8-5 12-9 13Z" fill="currentColor" opacity=".9"/><path d="M12 21C7 18 3 13 3 6c6 1 9 6 9 15Z" fill="currentColor" opacity=".55"/></svg>
+      PassionTree
+    </div>
+    <nav>
+      <a href="#experience">Experience</a>
+      <a href="#rhythm">Daily Rhythm</a>
+      <a href="#days">Day by Day</a>
+      <a href="#practical">Practical</a>
+    </nav>
+    <a class="book" href="#practical">Reserve a place</a>
+  </div>
+</header>
+
+<section class="hero">
+  <svg class="ridge" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <path d="M0 470 Q 240 380 480 440 T 960 430 T 1440 400 V600 H0 Z" fill="var(--sand-2)" opacity=".7"/>
+    <path d="M0 540 Q 300 470 600 520 T 1200 510 T 1440 500 V600 H0 Z" fill="var(--sand)" opacity=".9"/>
+  </svg>
+  <div class="wrap">
+    <span class="kicker"><b>Mallorca, Spain</b> · October 2026</span>
+    <h1>Founder<br>Transformation<br><em>Retreat</em></h1>
+    <p class="sub">Step out of your business. Reconnect with yourself. Redesign what comes next.</p>
+    <div class="facts">
+      <div><span class="k">Setting</span><span class="v">A private finca</span></div>
+      <div><span class="k">Duration</span><span class="v">Thu eve – Sun eve</span></div>
+      <div><span class="k">Cohort</span><span class="v">6–8 founders</span></div>
+      <div><span class="k">Focus</span><span class="v">Founder · Leader · Human</span></div>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="#practical">Reserve your place</a>
+      <a class="btn ghost" href="#experience">Explore the program</a>
+    </div>
+  </div>
+</section>
+
+<section id="experience">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow">The Experience</p>
+      <h2>Founder development, business transformation and holistic wellbeing — under one roof.</h2>
+      <p>Four days at a private finca in Mallorca, intentionally structured to move between deep coaching work and genuine recovery. Each day carries its own focus — from arrival and grounding, to the founder as a person, to the leader and the business, to integration and a concrete plan for what comes next.</p>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar reveal">
+        <div class="n"><span>Pillar</span><span>01</span></div>
+        <h3>The Founder</h3>
+        <p>Identity, values, energy and the patterns shaping how you lead.</p>
+      </div>
+      <div class="pillar reveal">
+        <div class="n"><span>Pillar</span><span>02</span></div>
+        <h3>The Leader &amp; Business</h3>
+        <p>Delegation, culture, team dynamics and the priorities that actually matter.</p>
+      </div>
+      <div class="pillar reveal">
+        <div class="n"><span>Pillar</span><span>03</span></div>
+        <h3>The Human</h3>
+        <p>Movement, breathwork, time in nature and real, unhurried rest.</p>
+      </div>
+    </div>
+
+    <div class="leave">
+      <div class="box reveal">
+        <h3>What you leave with</h3>
+        <ul>
+          <li><svg class="tick" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Your personal Founder Operating System</li>
+          <li><svg class="tick" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>A 90-Day Transformation Plan</li>
+          <li><svg class="tick" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>3 personal, 3 leadership &amp; 3 business priorities</li>
+        </ul>
+      </div>
+      <div class="card2 reveal">
+        <h3>Held by two coaches</h3>
+        <p class="lede">Group coaching each morning, then parallel 1:1 walk-and-talk sessions with <b>Marlene</b> &amp; <b>Jakob</b> — at the beach or the finca. Eight slots a day means every founder can book a session daily, with room to go deeper.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="rhythm">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow">A Day at the Finca</p>
+      <h2>The daily rhythm</h2>
+      <p>A template that repeats and evolves across Friday, Saturday and Sunday — coaching in the cool of the morning, space in the heat of the day, connection at night.</p>
+    </div>
+    <div class="rhythm">
+      <div class="slot reveal"><div class="t">08:00</div><div class="c"><b>Yoga</b><span>Movement &amp; mobility to open the body before the day begins</span></div></div>
+      <div class="slot reveal"><div class="t">09:30</div><div class="c"><b>Breakfast</b><span>A shared meal &amp; informal founder connection</span></div></div>
+      <div class="slot reveal"><div class="t">11:00</div><div class="c"><b>Group Session<span class="tag">Explore</span></b><span>Coaching &amp; reflection on the day's core theme</span></div></div>
+      <div class="slot reveal"><div class="t">12:30</div><div class="c"><b>Free Time / Lunch</b><span>Unstructured break — explore, rest, or eat together off-site</span></div></div>
+      <div class="slot reveal"><div class="t">15:00</div><div class="c"><b>Walk &amp; Talk — 1:1 Coaching<span class="tag">Individual</span></b><span>Bookable 45-min sessions with Marlene &amp; Jakob, at the beach or finca</span></div></div>
+      <div class="slot reveal"><div class="t">20:00</div><div class="c"><b>Finca BBQ</b><span>Connect · shared meal · founder exchange</span></div></div>
+      <div class="slot reveal"><div class="t">21:30</div><div class="c"><b>Evening Wind-Down<span class="tag">Ground</span></b><span>Sound healing, fire circle &amp; meditation for letting go</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="days">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow">Day by Day</p>
+      <h2>Four days, four movements</h2>
+    </div>
+    <div class="days">
+      <div class="day reveal">
+        <div class="top"><span class="dow">Thursday</span></div>
+        <h3>Arrive</h3>
+        <p class="motto">Step out of the noise.</p>
+        <ul class="focus">
+          <li>Arrival &amp; settling in — put down the laptop, leave operating mode</li>
+          <li>Welcome dinner: intentional connection &amp; introductions</li>
+          <li>Intention setting — one guiding question for the days ahead</li>
+        </ul>
+        <div class="sched">
+          <div class="row"><time>Aft.</time><span>Arrival &amp; settling in</span></div>
+          <div class="row"><time>19:00</time><span>Welcome Dinner</span></div>
+          <div class="row"><time>Eve.</time><span>Intention Setting</span></div>
+        </div>
+      </div>
+
+      <div class="day reveal">
+        <div class="top"><span class="dow">Friday</span></div>
+        <h3>The Founder</h3>
+        <p class="motto">Look inward before you lead outward.</p>
+        <ul class="focus">
+          <li>Identity beyond the business</li>
+          <li>Values &amp; purpose — is what you're building still aligned?</li>
+          <li>Energy &amp; resilience — what fuels you, what drains you</li>
+          <li>Patterns, awareness &amp; life design</li>
+        </ul>
+        <div class="sched">
+          <div class="row"><time>08:00</time><span>Yoga · Breakfast</span></div>
+          <div class="row"><time>11:00</time><span>Group — Founder Identity &amp; Values</span></div>
+          <div class="row"><time>15:00</time><span>1:1 — Energy, Patterns &amp; Life Design</span></div>
+          <div class="row"><time>21:30</time><span>Sound Healing &amp; Fire Circle</span></div>
+        </div>
+      </div>
+
+      <div class="day reveal">
+        <div class="top"><span class="dow">Saturday</span></div>
+        <h3>The Leader &amp; Business</h3>
+        <p class="motto">Turn awareness into transformation.</p>
+        <ul class="focus">
+          <li>The founder as leader — who must you become next?</li>
+          <li>Communication &amp; emotional intelligence under pressure</li>
+          <li>Delegation, agency &amp; what you should hand off</li>
+          <li>Culture, values &amp; team performance</li>
+        </ul>
+        <div class="sched">
+          <div class="row"><time>08:00</time><span>Yoga · Breakfast</span></div>
+          <div class="row"><time>11:00</time><span>Group — Leadership &amp; Culture</span></div>
+          <div class="row"><time>15:00</time><span>1:1 — Delegation, Team &amp; Priorities</span></div>
+          <div class="row"><time>21:30</time><span>Fire Circle &amp; Meditation</span></div>
+        </div>
+      </div>
+
+      <div class="day reveal">
+        <div class="top"><span class="dow">Sunday</span></div>
+        <h3>Integrate &amp; Design</h3>
+        <p class="motto">Don't return inspired. Return with a plan.</p>
+        <ul class="focus">
+          <li>Building your Founder Operating System</li>
+          <li>Individual integration — drafting your 90-Day Plan</li>
+          <li>Closing circle: reflection, commitments &amp; one final question</li>
+        </ul>
+        <div class="sched">
+          <div class="row"><time>08:00</time><span>Yoga · Breakfast</span></div>
+          <div class="row"><time>11:00</time><span>Group — The Founder Operating System</span></div>
+          <div class="row"><time>14:00</time><span>90-Day Transformation Plan</span></div>
+          <div class="row"><time>16:30</time><span>Closing Circle · Departure</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="practical">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow">Practical Information</p>
+      <h2>Dates, setting &amp; investment</h2>
+    </div>
+    <div class="grid-practical">
+      <div class="reveal">
+        <p class="lede">A private villa or finca in Mallorca, surrounded by nature — with space to move, think, connect and work, and enough distance from everyday life to see things differently. The final location is selected for access to nature, communal spaces, movement areas and quiet corners for reflection.</p>
+        <p class="eyebrow" style="margin-top:2.4rem">Who this is for</p>
+        <ul class="who">
+          <li><svg class="tick" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Founders who've built something meaningful — but rarely step outside it</li>
+          <li><svg class="tick" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Those navigating growth, change, or a new chapter</li>
+          <li><svg class="tick" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Founders who want their team to take more ownership</li>
+          <li><svg class="tick" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Those questioning what success should look like next</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="pricing">
+          <div class="price">
+            <div><div class="label">Shared Room</div><div class="sub">Thu evening → Sun evening</div></div>
+            <div class="amt">€2,500 <small>/ person</small></div>
+          </div>
+          <div class="price feature">
+            <div><div class="label">Private Room</div><div class="sub">Limited availability</div></div>
+            <div class="amt">€3,000 <small>/ person</small></div>
+          </div>
+        </div>
+        <p class="deposit">
+          <svg class="tick" viewBox="0 0 24 24" fill="none" style="color:var(--olive)"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          A €500 deposit secures your place; the balance is due before the retreat. Limited to 6–8 founders.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <p class="eyebrow" style="color:var(--olive)">October 2026 · Mallorca</p>
+    <h2>Don't return inspired.<br>Return with a <em>plan.</em></h2>
+    <p>Six to eight founders, four days, and a concrete operating system for what comes next. Reserve your place with a €500 deposit.</p>
+    <a class="btn primary" href="mailto:hello@passiontree.coach?subject=Founder%20Transformation%20Retreat%20—%20Mallorca%20Oct%202026">Reserve your place</a>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="brand" style="font-family:'Fraunces',serif;font-size:1.05rem">PassionTree Coaching</div>
+    <div>Executive &amp; Leadership Coaching · Career Coaching · Holistic Methods</div>
+    <div>grow your full potential</div>
+  </div>
+</footer>
+
+<script>
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.14});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
