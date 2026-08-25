@@ -5,40 +5,41 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Instrument+Sans:wght@400;500;600&display=swap">
 <style>
   :root{
-    --sand:#EEEADF;
-    --sand-2:#E5E0D2;
-    --paper:#F6F3EA;
-    --ink:#1E2A22;
-    --ink-soft:#3C463D;
-    --muted:#6E7568;
-    --line:#D6D0BF;
-    --olive:#5B6B41;
-    --olive-deep:#42502F;
-    --ember:#B4703A;
-    --card:#FBF9F2;
-    --shadow:0 1px 2px rgba(30,42,34,.05),0 12px 40px -18px rgba(30,42,34,.25);
+    /* Palette 1:1 aus dem PDF: Pflaume · Gold · Rosé auf Creme/Blush */
+    --sand:#F1E4EC;
+    --sand-2:#EAD4E0;
+    --paper:#FBF6E9;
+    --ink:#3A2E33;
+    --ink-soft:#4A3A42;
+    --muted:#8A8085;
+    --line:#EAD4E0;
+    --olive:#9C8339;
+    --olive-deep:#4A3A42;
+    --ember:#C44383;
+    --card:#FBF3F7;
+    --shadow:0 1px 2px rgba(58,46,51,.05),0 12px 40px -18px rgba(58,46,51,.28);
     --maxw:1120px;
   }
   :root:not([data-theme="light"]){
     @media (prefers-color-scheme: dark){
-      --sand:#161C17;
-      --sand-2:#1C231D;
-      --paper:#12170F;
-      --ink:#ECE7D7;
-      --ink-soft:#C7C4B4;
-      --muted:#8B9182;
-      --line:#2C3529;
-      --olive:#9FB07A;
-      --olive-deep:#B8C79A;
-      --ember:#D69256;
-      --card:#1A2019;
+      --sand:#2A2027;
+      --sand-2:#332631;
+      --paper:#1C161A;
+      --ink:#F1E4EC;
+      --ink-soft:#D9C9D2;
+      --muted:#A99BA3;
+      --line:#3A2E36;
+      --olive:#C9AE6C;
+      --olive-deep:#EAD4E0;
+      --ember:#DE6BA3;
+      --card:#241C22;
       --shadow:0 1px 2px rgba(0,0,0,.3),0 20px 50px -22px rgba(0,0,0,.7);
     }
   }
   :root[data-theme="dark"]{
-    --sand:#161C17;--sand-2:#1C231D;--paper:#12170F;--ink:#ECE7D7;--ink-soft:#C7C4B4;
-    --muted:#8B9182;--line:#2C3529;--olive:#9FB07A;--olive-deep:#B8C79A;--ember:#D69256;
-    --card:#1A2019;--shadow:0 1px 2px rgba(0,0,0,.3),0 20px 50px -22px rgba(0,0,0,.7);
+    --sand:#2A2027;--sand-2:#332631;--paper:#1C161A;--ink:#F1E4EC;--ink-soft:#D9C9D2;
+    --muted:#A99BA3;--line:#3A2E36;--olive:#C9AE6C;--olive-deep:#EAD4E0;--ember:#DE6BA3;
+    --card:#241C22;--shadow:0 1px 2px rgba(0,0,0,.3),0 20px 50px -22px rgba(0,0,0,.7);
   }
 
   *{box-sizing:border-box}
@@ -114,7 +115,6 @@
 
   .leave{margin-top:1.2rem;display:grid;grid-template-columns:1.1fr 1fr;gap:1.2rem;align-items:stretch}
   .leave .box{background:var(--olive-deep);color:var(--paper);border-radius:18px;padding:2rem;display:flex;flex-direction:column;justify-content:center}
-  :root[data-theme="dark"] .leave .box,:root:not([data-theme="light"]) .leave .box{color:#12170F}
   .leave .box h3{font-size:1.6rem;margin-bottom:.4rem;color:inherit}
   .leave ul{list-style:none;margin:1rem 0 0;padding:0;display:flex;flex-direction:column;gap:.7rem}
   .leave li{display:flex;gap:.7rem;align-items:flex-start;font-size:1rem}
